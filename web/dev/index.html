@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>MarkPanther preview.js dev harness</title>
+<!--
+  本番の preview.html とは違い、ここは手元のブラウザで目視確認するための
+  開発用ページなので CSP はゆるい（fetch でサンプルmdを取得するため）。
+  vendor/preview.js/CSS は本番と同じファイルを /preview/ 経由でそのまま読む。
+-->
+<link id="markpanther-style-link" rel="stylesheet" href="/preview/styles/GitHub.css">
+<link rel="stylesheet" href="/preview/preview.css">
+<link rel="stylesheet" href="/preview/vendor/katex/katex.min.css">
+<link rel="stylesheet" href="/preview/vendor/highlightjs/styles/github.min.css" media="(prefers-color-scheme: light)">
+<link rel="stylesheet" href="/preview/vendor/highlightjs/styles/github-dark.min.css" media="(prefers-color-scheme: dark)">
+<style>
+  body { margin: 0; }
+  #dev-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #222;
+    color: #fff;
+    font: 12px/1.6 -apple-system, sans-serif;
+    padding: 6px 12px;
+  }
+  #dev-toolbar button {
+    margin-right: 8px;
+  }
+</style>
+</head>
+<body>
+<div id="dev-toolbar">
+  MarkPanther dev harness —
+  <button data-style="GitHub">GitHub style</button>
+  <button data-style="Clearness">Clearness style</button>
+  <button id="reload-btn">reload sample.md</button>
+</div>
+<article id="content" class="markdown-body"></article>
+
+<script src="/preview/vendor/markdown-it/markdown-it.min.js"></script>
+<script src="/preview/vendor/markdown-it-footnote/markdown-it-footnote.min.js"></script>
+<script src="/preview/vendor/markdown-it-task-lists/markdown-it-task-lists.min.js"></script>
+<script src="/preview/vendor/markdown-it-sup/markdown-it-sup.min.js"></script>
+<script src="/preview/vendor/markdown-it-mark/markdown-it-mark.min.js"></script>
+<script src="/preview/vendor/markdown-it-texmath/texmath.js"></script>
+<script src="/preview/vendor/katex/katex.min.js"></script>
+<script src="/preview/vendor/js-yaml/js-yaml.min.js"></script>
+<script src="/preview/vendor/dompurify/purify.min.js"></script>
+<script src="/preview/vendor/highlightjs/highlight.min.js"></script>
+<script src="/preview/vendor/idiomorph/idiomorph.min.js"></script>
+<script src="/preview/preview.js"></script>
+<script>
+  async function loadSample() {
+    var res = await fetch("/sample.md");
+    var text = await res.text();
+    await window.MarkPanther.render(text, "/dev/assets", {
+      superscript: true,
+    });
+  }
+  document.getElementById("reload-btn").addEventListener("click", loadSample);
+  document.querySelectorAll("#dev-toolbar button[data-style]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      window.MarkPanther.setStyle(btn.getAttribute("data-style"));
+    });
+  });
+  loadSample();
+</script>
+</body>
+</html>

@@ -1,0 +1,823 @@
+/*
+ * preview.css — スタイル（GitHub.css / Clearness.css / ユーザーCSS）に依存しない
+ * 構造レベルの土台。テーマ切り替えでも常に適用される。
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+/* ウィンドウ上下に浮くクローム（ガラスのカプセル）のぶん。本文はその下をスクロールして通り抜ける */
+html {
+  scroll-padding-top: calc(var(--markpanther-top-inset, 0px) + 8px);
+  scroll-padding-bottom: var(--markpanther-bottom-inset, 0px);
+}
+
+body {
+  padding-top: var(--markpanther-top-inset, 0px);
+  padding-bottom: var(--markpanther-bottom-inset, 0px);
+}
+
+@media print {
+  body { padding-top: 0; padding-bottom: 0; }
+}
+
+#content {
+  box-sizing: border-box;
+}
+
+#content img {
+  max-width: 100%;
+}
+
+/* ------------------------------------------------------------------ *
+ * frontmatter
+ * ------------------------------------------------------------------ */
+
+.frontmatter-table {
+  border-collapse: collapse;
+  margin: 0 0 1.5em;
+  font-size: 0.85em;
+}
+
+.frontmatter-table th,
+.frontmatter-table td {
+  padding: 0.25em 0.75em;
+  vertical-align: top;
+  text-align: left;
+}
+
+.frontmatter-table th {
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0.7;
+}
+
+.frontmatter-raw {
+  font-size: 0.85em;
+  opacity: 0.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ------------------------------------------------------------------ *
+ * TOC
+ * ------------------------------------------------------------------ */
+
+.toc {
+  margin: 0 0 1.5em;
+}
+
+.toc-list {
+  margin: 0;
+  padding-left: 1.25em;
+}
+
+.toc-list > li {
+  margin: 0.15em 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * コードブロック / 行番号
+ * ------------------------------------------------------------------ */
+
+.code-block {
+  overflow-x: auto;
+}
+
+.code-block.line-numbers {
+  counter-reset: line;
+  padding-left: 0;
+}
+
+.code-block.line-numbers .line {
+  display: block;
+  counter-increment: line;
+  padding-left: 3.5em;
+  position: relative;
+}
+
+.code-block.line-numbers .line::before {
+  content: counter(line);
+  position: absolute;
+  left: 0;
+  width: 3em;
+  text-align: right;
+  opacity: 0.4;
+  user-select: none;
+}
+
+/* ------------------------------------------------------------------ *
+ * mermaid
+ * ------------------------------------------------------------------ */
+
+.mermaid-diagram {
+  margin: 1em 0;
+  text-align: center;
+}
+
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.mermaid-diagram .mermaid-source {
+  text-align: left;
+  opacity: 0.6;
+}
+
+.mermaid-error {
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 0.75em 1em;
+  opacity: 0.85;
+}
+
+.mermaid-error .mermaid-error-message {
+  font-weight: 600;
+  margin: 0 0 0.5em;
+}
+
+.mermaid-error .mermaid-source {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * その他
+ * ------------------------------------------------------------------ */
+
+.task-list-item {
+  list-style: none;
+}
+
+/* ネイティブのチェックボックスは小さく、塗りの上のチェックが沈んで読めない。
+   自前で描いて、箱を一回り大きく・チェックを白く太くする。
+   寸法はすべて em なので、ズームにも追従する。 */
+.task-list-item input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 1.08em;
+  height: 1.08em;
+  margin: 0 0.45em 0 0;
+  vertical-align: -0.17em;
+  border: 0.1em solid var(--markpanther-task-border);
+  border-radius: 0.3em;
+  background: var(--markpanther-task-surface);
+}
+
+.task-list-item input[type="checkbox"]:checked {
+  background: var(--markpanther-task-fill);
+  border-color: var(--markpanther-task-fill);
+}
+
+.task-list-item input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 0.33em;
+  top: 0.13em;
+  width: 0.22em;
+  height: 0.46em;
+  border: solid var(--markpanther-task-check);
+  border-width: 0 0.15em 0.15em 0;
+  transform: rotate(43deg);
+}
+
+/* ------------------------------------------------------------------ *
+ * 変更箇所ハイライト（markChanges）
+ *
+ * .markpanther-changed は render() が新規/変更ユニットへ後付けで付けるクラス。
+ * 左の細いアクセント帯 + 淡い背景を最初の 1.6 秒は保持し、計 4 秒でフェードアウトさせる
+ * （box-shadow の inset を使うことでレイアウトサイズに影響しない。
+ * tr のような display:table-row な要素でも安全に効く）。
+ * クラス自体は preview.js 側が同じ 4 秒後に JS で外す。
+ * ------------------------------------------------------------------ */
+
+/* 値は App/FloatingChrome.swift の UpdateColor と揃える（ヘッダの Updated 表示と同じピンク） */
+:root {
+  --markpanther-change-accent: #f0407f;
+  --markpanther-change-bg: rgba(255, 82, 140, 0.20);
+  --markpanther-change-bg-quiet: rgba(255, 82, 140, 0.10);
+  --markpanther-change-added: rgba(255, 82, 140, 0.24);
+  /* 行ごと足された帯用。半透明だと隣の帯と重なった部分だけ濃くなるので不透明にする */
+  --markpanther-change-added-solid: #ffd6e4;
+  --markpanther-change-added-strong: rgba(255, 60, 125, 0.40);
+  /* 削除は「もう無いもの」なので、追加のピンクとは分けてグレーで静かに示す */
+  --markpanther-change-removed: rgba(60, 60, 67, 0.45);
+  --markpanther-change-removed-bg: rgba(60, 60, 67, 0.06);
+  --markpanther-change-removed-text: rgba(60, 60, 67, 0.62);
+  --markpanther-change-removed-surface: #f2f2f5;
+  /* タスクリスト。塗りはアイコンと同じローズ、チェックは白で抜く */
+  --markpanther-task-border: rgba(60, 60, 67, 0.34);
+  --markpanther-task-surface: transparent;
+  --markpanther-task-fill: #c9445f;
+  --markpanther-task-check: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --markpanther-change-accent: #ff7aa8;
+    --markpanther-change-bg: rgba(255, 122, 168, 0.26);
+    --markpanther-change-bg-quiet: rgba(255, 122, 168, 0.14);
+    --markpanther-change-added: rgba(255, 122, 168, 0.30);
+    --markpanther-change-added-solid: #563142;
+    --markpanther-change-added-strong: rgba(255, 122, 168, 0.50);
+    --markpanther-change-removed: rgba(235, 235, 245, 0.45);
+    --markpanther-change-removed-bg: rgba(235, 235, 245, 0.07);
+    --markpanther-change-removed-text: rgba(235, 235, 245, 0.62);
+    --markpanther-change-removed-surface: #2c2c31;
+    --markpanther-task-border: rgba(235, 235, 245, 0.34);
+    /* 明るいローズに白抜きだと沈むので、暗い側は塗りを一段濃くする */
+    --markpanther-task-fill: #d9557a;
+    --markpanther-task-check: #fff;
+  }
+}
+
+#content {
+  position: relative;
+}
+
+/* 行内で追加・変更された部分（前の版との差分）。DOM は書き換えず CSS Custom Highlight で塗る */
+::highlight(markpanther-added) {
+  background-color: var(--markpanther-change-added);
+  color: inherit;
+}
+
+/*
+ * スタイル A（既定）: マーカー。本文は塗らず、変わったブロックの左の余白に ● を出す。
+ * ● は ::before を #content 基準で絶対配置する（top を指定しないので、縦位置はそのブロックの 1 行目）。
+ * 行番号を出しているときは、行番号の ::before が ● も一緒に描く（下の「プレビューの行番号」を参照）。
+ */
+body:not(.markpanther-line-numbers):not(.markpanther-change-band) .markpanther-changed:not(.markpanther-added-whole)::before,
+body:not(.markpanther-line-numbers):not(.markpanther-change-band) .markpanther-changed-recent:not(.markpanther-added-whole)::before {
+  content: "";
+  position: absolute;
+  left: 0.5em;
+  width: 0.5em;
+  height: 0.5em;
+  /* 箇条書きの点と同じ高さに乗せる */
+  margin-top: 0.72em;
+  border-radius: 50%;
+  background: var(--markpanther-change-accent);
+  pointer-events: none;
+}
+
+/*
+ * 行ごと足されたブロックは、箇条書きの点まで含めて塗る。範囲ハイライトは文字にしか
+ * 乗らないので、ここだけ要素の背景で塗る。塗り自体が「この行は新しい」を言うので、
+ * 余白の ● は出さない（::before をこの塗りに使う）。
+ */
+body:not(.markpanther-change-band) .markpanther-added-whole {
+  position: relative;
+  /* これが無いと z-index: -1 の塗りが本文の背景の裏に回って見えなくなる */
+  isolation: isolate;
+}
+
+body:not(.markpanther-change-band) .markpanther-changed.markpanther-added-whole::before,
+body:not(.markpanther-change-band) .markpanther-changed-recent.markpanther-added-whole::before {
+  content: "";
+  position: absolute;
+  top: -0.12em;
+  bottom: -0.12em;
+  left: -0.3em;
+  right: -0.3em;
+  width: auto;
+  height: auto;
+  margin-top: 0;
+  border-radius: 3px;
+  background: var(--markpanther-change-added-solid);
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* 箇条書きは点がリストの余白側にあるので、そこまで伸ばす */
+body:not(.markpanther-change-band) li.markpanther-changed.markpanther-added-whole::before,
+body:not(.markpanther-change-band) li.markpanther-changed-recent.markpanther-added-whole::before {
+  left: -1.5em;
+}
+
+/*
+ * 消えただけのブロックには余白の印を出さない。行内の ▲ と点線の軸が、消えた
+ * 地点そのものを指しているので、余白の ● は同じことを二度言っているだけになる。
+ * ● はピンクのまま「ここに何か足された」を表す印に絞る。
+ */
+body:not(.markpanther-line-numbers):not(.markpanther-change-band) .markpanther-removal-only::before {
+  display: none;
+}
+
+body:not(.markpanther-change-band) tr.markpanther-removal-only > :first-child {
+  box-shadow: none;
+}
+
+body:not(.markpanther-line-numbers):not(.markpanther-change-band) :is(h1, h2, h3).markpanther-changed:not(.markpanther-added-whole)::before,
+body:not(.markpanther-line-numbers):not(.markpanther-change-band) :is(h1, h2, h3).markpanther-changed-recent:not(.markpanther-added-whole)::before {
+  font-size: 1rem;
+  margin-top: 0.75em;
+}
+
+/* 表の行は疑似要素を余白へ出せないので、先頭セルの左端に線を出す（どちらのスタイルでも共通） */
+#content tr.markpanther-changed::before,
+#content tr.markpanther-changed-recent::before {
+  content: none !important;
+}
+
+body:not(.markpanther-change-band) tr.markpanther-changed > :first-child,
+body:not(.markpanther-change-band) tr.markpanther-changed-recent > :first-child {
+  box-shadow: inset 3px 0 0 0 var(--markpanther-change-accent);
+}
+
+/*
+ * スタイル B: diff の帯（GitHub の差分表示と同じ見せ方）。変わった行に薄い帯を表示幅いっぱい（行番号の欄も含む）に敷き、
+ * 行内の変更部分は濃く塗る。box-shadow を左右へ大きく広げ、clip-path で上下にはみ出す分だけ切る。
+ */
+@keyframes markpanther-change-fade {
+  0%, 40% {
+    background-color: var(--markpanther-change-bg);
+    box-shadow: 0 0 0 100vmax var(--markpanther-change-bg);
+  }
+  100% {
+    background-color: var(--markpanther-change-bg-quiet);
+    box-shadow: 0 0 0 100vmax var(--markpanther-change-bg-quiet);
+  }
+}
+
+body.markpanther-change-band .markpanther-changed,
+body.markpanther-change-band .markpanther-changed-recent {
+  clip-path: inset(0 -100vmax);
+}
+
+body.markpanther-change-band .markpanther-changed {
+  animation: markpanther-change-fade 4s ease-in forwards;
+}
+
+body.markpanther-change-band .markpanther-changed-recent {
+  background-color: var(--markpanther-change-bg-quiet);
+  box-shadow: 0 0 0 100vmax var(--markpanther-change-bg-quiet);
+}
+
+body.markpanther-change-band tr.markpanther-changed,
+body.markpanther-change-band tr.markpanther-changed-recent {
+  clip-path: none;
+  box-shadow: none;
+  animation: none;
+  background-color: var(--markpanther-change-bg-quiet);
+}
+
+body.markpanther-change-band ::highlight(markpanther-added) {
+  background-color: var(--markpanther-change-added-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.markpanther-change-band .markpanther-changed {
+    animation: none;
+    background-color: var(--markpanther-change-bg);
+    box-shadow: 0 0 0 100vmax var(--markpanther-change-bg);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * プレビュー内検索（find / clearFind）
+ *
+ * CSS Custom Highlight API 用。DOM は書き換えないので通常の
+ * セレクタではなく ::highlight() で塗る。
+ * ------------------------------------------------------------------ */
+
+::highlight(markpanther-find) {
+  background-color: rgba(255, 235, 59, 0.55);
+  color: inherit;
+}
+
+::highlight(markpanther-find-current) {
+  background-color: #ff8f00;
+  color: #1a1a1a;
+}
+
+@media (prefers-color-scheme: dark) {
+  ::highlight(markpanther-find) {
+    background-color: rgba(255, 213, 79, 0.35);
+  }
+
+  ::highlight(markpanther-find-current) {
+    background-color: #ffb300;
+    color: #1a1a1a;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * 印刷
+ * ------------------------------------------------------------------ */
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  #content {
+    max-width: none !important;
+  }
+
+  .code-block {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: visible;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  img,
+  table,
+  .mermaid-diagram,
+  .code-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * コードブロックの Copy ボタン（#content の外のオーバーレイ層に置いて重ねる）
+ * ラベルは ::before で出す（テキストノードを持たせない）。
+ * ------------------------------------------------------------------ */
+
+#markpanther-overlays { position: absolute; top: 0; left: 0; width: 100%; height: 0; }
+
+.markpanther-copy-button {
+  position: absolute;
+  z-index: 10;
+  margin: 0;
+  padding: 1px 7px;
+  font: 500 11px/1.5 -apple-system, BlinkMacSystemFont, sans-serif;
+  color: rgba(60, 60, 67, 0.6);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(60, 60, 67, 0.16);
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+
+.markpanther-copy-button::before { content: "Copy"; }
+.markpanther-copy-button.is-copied::before { content: "Copied"; }
+.markpanther-copy-button:hover { opacity: 1; color: rgba(0, 0, 0, 0.9); background: #fff; }
+.markpanther-copy-button.is-copied { opacity: 1; color: #1a7f37; border-color: rgba(26, 127, 55, 0.4); }
+
+@media (prefers-color-scheme: dark) {
+  .markpanther-copy-button {
+    color: rgba(235, 235, 245, 0.65);
+    background: rgba(58, 58, 60, 0.7);
+    border-color: rgba(235, 235, 245, 0.16);
+  }
+  .markpanther-copy-button:hover { color: #fff; background: rgba(72, 72, 74, 1); }
+  .markpanther-copy-button.is-copied { color: #3fb950; border-color: rgba(63, 185, 80, 0.45); }
+}
+
+@media print {
+  #markpanther-overlays { display: none !important; }
+}
+
+/* ------------------------------------------------------------------ *
+ * 読み込めなかった画像: alt テキストが読める大きさの枠にする
+ * ------------------------------------------------------------------ */
+
+img.markpanther-broken-image {
+  display: inline-block;
+  min-width: 14em;
+  height: 2.6em;
+  padding: 0.4em 0.7em;
+  box-sizing: border-box;
+  border: 1px dashed rgba(215, 58, 73, 0.6);
+  border-radius: 6px;
+  background: rgba(215, 58, 73, 0.06);
+  color: rgba(215, 58, 73, 0.95);
+  font-size: 0.85em;
+  vertical-align: middle;
+}
+
+/* ヘッダ帯のすぐ下から本文を始める（先頭要素の上マージンぶんの空きを作らない） */
+#content > :first-child {
+  margin-top: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * プレビューの行番号（ソースの行）。左の欄に、各ブロックの開始行を細身の数字で出す。
+ *
+ * 番号は ::before を #content 基準で絶対配置する（top を指定しないので、縦位置はそのブロックの 1 行目になる。
+ * ::after だとブロックの末尾に付いてしまう）。フォントと行の高さは親から継いだままにして 1 行目とベースラインを揃え、
+ * 見た目の大きさだけ transform で縮める。幅を「目標の幅 ÷ 縮小率」にしてあるので、縮めた後の欄の幅と左端は
+ * ブロックの種類（見出し・本文・コード）によらず一定になる。
+ * 変更のあったブロックは、番号の左に ●（スタイル A）か、番号の右に「+」（スタイル B）を付ける。
+ * リストや引用の「入れ物」は中身と同じ行から始まるので番号を出さない。表の行は欄へ出せないので表に 1 つだけ。
+ * ------------------------------------------------------------------ */
+
+/*
+ * 横位置はエディタの行番号と同じにする（App/LineNumberRuler.swift と EditorView の余白に対応）:
+ * 番号の右端 = コンテンツ領域の左から 40px、本文の開始 = 75px。
+ * #content は中央寄せなので、広いウィンドウでは本文ごと右へ動くが、番号の欄は表示領域の左端に固定する
+ * （--markpanther-content-left は preview.js が #content の左端の位置を入れる）。
+ */
+body.markpanther-line-numbers #content {
+  padding-left: 75px;
+  --markpanther-lno-scale: 0.72;
+  --markpanther-lno-right: 40px;
+}
+
+body.markpanther-line-numbers #content [data-lno]::before {
+  content: attr(data-lno);
+  position: absolute;
+  left: calc(-1 * var(--markpanther-content-left, 0px));
+  width: calc(var(--markpanther-lno-right) / var(--markpanther-lno-scale));
+  box-sizing: border-box;
+  text-align: right;
+  white-space: pre;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-stretch: condensed;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  font-style: normal;
+  text-decoration: none;
+  color: rgba(120, 125, 135, 0.8);
+  transform: scale(var(--markpanther-lno-scale));
+  transform-origin: left center;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* 変更のあったブロック: 番号を同じ色にし、番号の左（欄の左端）に ● を描く */
+body.markpanther-line-numbers #content .markpanther-changed[data-lno]::before,
+body.markpanther-line-numbers #content .markpanther-changed-recent[data-lno]::before {
+  color: var(--markpanther-change-accent);
+  font-weight: 600;
+}
+
+/*
+ * 丸は図形（背景のグラデーション）で描き、番号の左隣に置く。大きさは数字より少し小さいくらい（直径 0.6em）、
+ * 間隔は半角スペース分（0.3em）。番号は右寄せ・等幅数字なので、位置は「桁数 × 1ch + 間隔」で決まる
+ * （桁数は preview.js が data-lno-digits に入れる）。
+ */
+body.markpanther-line-numbers:not(.markpanther-change-band) #content .markpanther-changed[data-lno]::before,
+body.markpanther-line-numbers:not(.markpanther-change-band) #content .markpanther-changed-recent[data-lno]::before {
+  --markpanther-dot: 0.6em;
+  background: radial-gradient(circle closest-side, var(--markpanther-change-accent) 94%, transparent 100%) no-repeat;
+  background-size: var(--markpanther-dot) var(--markpanther-dot);
+  background-position: right calc(var(--markpanther-lno-digits, 2) * 1ch + 0.3em) center;
+}
+
+#content [data-lno-digits="1"] { --markpanther-lno-digits: 1; }
+#content [data-lno-digits="2"] { --markpanther-lno-digits: 2; }
+#content [data-lno-digits="3"] { --markpanther-lno-digits: 3; }
+#content [data-lno-digits="4"] { --markpanther-lno-digits: 4; }
+#content [data-lno-digits="5"] { --markpanther-lno-digits: 5; }
+
+/* 更新の直後だけ、番号ごと数回明滅させて目に入れる */
+@keyframes markpanther-change-dot-pulse {
+  0% { opacity: 0.25; }
+  100% { opacity: 1; }
+}
+
+body.markpanther-line-numbers:not(.markpanther-change-band) #content .markpanther-changed[data-lno]::before {
+  animation: markpanther-change-dot-pulse 0.9s ease-out 3;
+}
+
+body.markpanther-line-numbers.markpanther-change-band #content .markpanther-changed[data-lno]::before,
+body.markpanther-line-numbers.markpanther-change-band #content .markpanther-changed-recent[data-lno]::before {
+  /* スタイル B は番号の右に「+」を付ける（そのぶん欄を広げて、番号の右端の位置は変えない） */
+  content: attr(data-lno) "\2009+";
+  width: calc((var(--markpanther-lno-right) + 0.75em * var(--markpanther-lno-scale)) / var(--markpanther-lno-scale));
+}
+
+body.markpanther-line-numbers #content :is(ul, ol, blockquote, thead, tbody, tr)[data-lno]::before,
+body.markpanther-line-numbers #content li > p[data-lno]::before {
+  content: none !important;
+}
+
+body.markpanther-line-numbers #content h1 { --markpanther-lno-scale: 0.38; }
+body.markpanther-line-numbers #content h2 { --markpanther-lno-scale: 0.48; }
+body.markpanther-line-numbers #content h3 { --markpanther-lno-scale: 0.58; }
+body.markpanther-line-numbers #content h4 { --markpanther-lno-scale: 0.66; }
+body.markpanther-line-numbers #content pre { --markpanther-lno-scale: 0.82; }
+
+@media (prefers-color-scheme: dark) {
+  body.markpanther-line-numbers #content [data-lno]::before { color: rgba(150, 156, 168, 0.75); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.markpanther-line-numbers #content .markpanther-changed[data-lno]::before { animation: none; }
+}
+
+@media print {
+  body.markpanther-line-numbers #content { padding-left: 1.5em; }
+  body.markpanther-line-numbers #content [data-lno]::before { content: none; }
+}
+
+/* ------------------------------------------------------------------ *
+ * 消えた箇所の印
+ *
+ * 要件は「最新版の表示を邪魔しないこと」。印の span は文字を持たず、幅は
+ * 同じだけの負マージンで打ち消すので、本文の送りは 1px も動かない。
+ * 何が消えたかは title のツールチップで読む。
+ * ------------------------------------------------------------------ */
+
+/* 幅は持つが、同じだけ左右の margin を負にして打ち消す。こうすると本文の送りは
+   1px も変わらないまま、ホバーを拾えるだけの当たり判定が残る（幅 0 だと拾えない）。 */
+.markpanther-removed {
+  position: relative;
+  display: inline-block;
+  width: 1.2em;
+  margin-left: -0.6em;
+  margin-right: -0.6em;
+  height: 1em;
+  vertical-align: text-bottom;
+}
+
+/* 「ここに何かあった」を示す ▲。行の下に置き、上へ伸ばした点線の軸で
+   消えた地点そのものを指す（校正記号のキャレットと同じ読み方）。 */
+.markpanther-removed::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  margin-left: -0.24em;
+  /* 三角の頂点が行の下端＝追加ハイライト（ピンクの箱）の下辺にちょうど乗る位置。
+     高さぶん下げると、頂点が 0（＝span の下端）に来る。 */
+  bottom: -0.416em;
+  /* 正三角形: 底辺 0.48em に対して高さは 0.48 × √3/2 */
+  width: 0.48em;
+  height: 0.416em;
+  background: var(--markpanther-change-removed);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  transition: opacity 0.12s ease-out;
+}
+
+/* ▲ から上へ伸びる点線の軸。高さは追加ハイライト（ピンクの網掛け）の箱と
+   同じにして、消えた地点が行のどこだったかを指す。 */
+.markpanther-removed::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  margin-left: -0.75px;
+  bottom: 0;
+  width: 1.5px;
+  height: 1.16em;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--markpanther-change-removed) 0 2px,
+    transparent 2px 3.5px
+  );
+  transition: opacity 0.12s ease-out;
+}
+
+.markpanther-removed:hover::before {
+  opacity: 0.75;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .markpanther-removed::before,
+  .markpanther-removed::after {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * ブロックごと消えた箇所
+ *
+ * 閉じているあいだは ▶ と破線だけ。行内の削除（▲）と違って細い場所を持つのは、
+ * 高さを 0 にすると行間の詰まったリストで隣の行と重なって見えなくなるため
+ * （実機で確認）。畳まれた 1 行の痕跡として読ませる。
+ *
+ * 実線にすると区切り線（hr）と紛らわしいので破線。▶ を押すと中身を開く。
+ * ------------------------------------------------------------------ */
+
+.markpanther-removed-block {
+  position: relative;
+  display: block;
+  height: 0.62em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* li に display: block を当てると行頭の記号そのものが作られなくなるので、
+   リストの中では list-item のままにして list-style で出し分ける */
+li.markpanther-removed-block {
+  display: list-item;
+}
+
+/* 閉じているあいだは行頭の記号を出さない（破線だけの痕跡にする） */
+
+/* 箇条書きの中（＝階層が下がっている）は、そのまま項目の頭に置く */
+li.markpanther-removed-block::after {
+  left: 0.14em;
+}
+
+/* 戻して見せるときは点も一緒に戻す。消えた項目の姿をそのまま再現するため。
+   ::marker の content は WebKit で戻しきれないので list-style だけで出し分ける。 */
+li.markpanther-removed-block.is-open {
+  list-style: disc outside;
+  color: var(--markpanther-change-removed);
+}
+
+/* 閉じている状態の破線。▶ のぶんだけ左を空ける */
+.markpanther-removed-block::before {
+  content: "";
+  position: absolute;
+  left: 0.8em;
+  right: 0;
+  top: 0.31em;
+  height: 0;
+  border-top: 1.5px dashed var(--markpanther-change-removed);
+  opacity: 0.85;
+  transition: opacity 0.12s ease-out;
+  pointer-events: none;
+}
+
+.markpanther-removed-block:hover::before {
+  opacity: 1;
+}
+
+/* 行番号を出しているときは本文が右へ寄るので、破線と ▶ もそこに合わせる */
+body.markpanther-line-numbers .markpanther-removed-block::before {
+  left: calc(var(--markpanther-content-left, 0px) + 0.8em);
+}
+
+body.markpanther-line-numbers .markpanther-removed-block::after {
+  left: calc(var(--markpanther-content-left, 0px) + 0.14em);
+}
+
+/* 破線の左に置く ▶。行内の ▲ と同じ正三角形を 90° 回したもの。
+   マウスを乗せると右側（破線のあった場所）に本文が戻るので、向きもそちらを指す。 */
+.markpanther-removed-block::after {
+  content: "";
+  position: absolute;
+  /* 余白の ●（left: 0.5em / #content 基準）と同じ x に置く */
+  left: calc(0.5em - var(--markpanther-content-pad, 0px));
+  top: 50%;
+  margin-top: -0.24em;
+  width: 0.416em;
+  height: 0.48em;
+  background: var(--markpanther-change-removed);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  pointer-events: none;
+}
+
+/*
+ * マウスを乗せているあいだだけ本文の流れに戻す、消えた本文。
+ * 吹き出しにせずその場に差し込むので「変更前はこう書いてあった」がそのまま読める。
+ * 取り消し線とグレーで、いま在るものと取り違えないようにする。
+ */
+.markpanther-removed-reveal {
+  color: var(--markpanther-change-removed-text);
+  background: var(--markpanther-change-removed-bg);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--markpanther-change-removed);
+  border-radius: 2px;
+  padding: 0 0.1em;
+}
+
+/* ブロックごと消えた箇所は、破線のあった行がそのまま中身に置き換わる */
+.markpanther-removed-block.is-open::before,
+.markpanther-removed-block.is-open::after {
+  display: none;
+}
+
+.markpanther-removed-block.is-open {
+  height: auto;
+}
+
+/*
+ * ブロックごと消えていたものは、元のタグ（段落・見出しなど）で戻すので、
+ * 余白も字の大きさも本文の規則がそのまま効く。ここで足すのは色と取り消し線、
+ * そして塗りが文字に食い込まないための左右の逃がしだけ。
+ */
+.markpanther-removed-block > .markpanther-removed-reveal {
+  margin-left: -0.3em;
+  margin-right: -0.3em;
+  padding: 0.04em 0.3em;
+  border-radius: 3px;
+}
+
+/* 印そのものが li のときは、点は li 側が描くので中身は流し込むだけ */
+li.markpanther-removed-block > .markpanther-removed-reveal {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .markpanther-removed-block::before {
+    transition: none;
+  }
+}

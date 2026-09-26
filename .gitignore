@@ -1,0 +1,18 @@
+.DS_Store
+.build/
+build/
+DerivedData/
+*.xcodeproj
+xcuserdata/
+node_modules/
+
+# Icon exploration artifacts (large, regenerable)
+design/icon-candidates/
+
+# 非公開の入れ子リポジトリ（jagainu/markpanther-private）: 作業メモ・サポートページ原稿・署名の身元
+private/
+# AI エージェント向けの指示書。実体は private/AGENTS.md（CLAUDE.md・AGENTS.md はそこへのリンク）
+CLAUDE.md
+AGENTS.md
+.claude/
+.codex/

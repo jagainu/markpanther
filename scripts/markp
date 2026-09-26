@@ -1,0 +1,20 @@
+#!/bin/sh
+# Open Markdown files in MarkPanther. Files that don't exist yet are created first,
+# so `markp notes.md` works like an editor command.
+#   -g  open in the background without stealing focus (for Claude Code hooks)
+#
+# 開く先は /Applications の本体を明示する。`open -a MarkPanther` と名前で引くと、
+# Launch Services に登録済みの別ビルド（開発中の Debug ビルド等、bundle id は同じ）
+# を掴むことがあるため。無ければ名前解決に任せる。
+APP="/Applications/MarkPanther.app"
+[ -d "$APP" ] || APP="MarkPanther"
+
+background=""
+if [ "$1" = "-g" ]; then
+  background="-g"
+  shift
+fi
+for f in "$@"; do
+  [ -e "$f" ] || : > "$f"
+done
+exec open $background -a "$APP" "$@"

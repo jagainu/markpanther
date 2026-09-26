@@ -1,0 +1,167 @@
+name: MarkPanther
+options:
+  bundleIdPrefix: dev.nijizo
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # 手元・他人のソースビルドは .dev 付き。公式の配布ビルドだけ Makefile が
+    # MP_BUNDLE_ID=dev.nijizo.markpanther で上書きする（同じ Mac で通知・設定が混ざらないように）
+    MP_BUNDLE_ID: dev.nijizo.markpanther.dev
+packages:
+  MarkPantherCore:
+    path: Packages/MarkPantherCore
+targets:
+  MarkPanther:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+        excludes:
+          - Resources
+      - path: App/Resources/preview
+        type: folder
+      # 配った .app からも `markp` を入れられるよう、スクリプトを同梱する
+      - path: scripts/markp
+        buildPhase: resources
+    dependencies:
+      - package: MarkPantherCore
+      - target: MarkPantherQuickLook
+      - target: MarkPantherThumbnail
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: MarkPanther
+        LSMinimumSystemVersion: "15.0"
+        NSPrincipalClass: NSApplication
+        NSHumanReadableCopyright: ""
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Markdown Document
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - net.daringfireball.markdown
+              - public.plain-text
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: net.daringfireball.markdown
+            UTTypeDescription: Markdown Document
+            UTTypeConformsTo:
+              - public.plain-text
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - md
+                - markdown
+                - mdown
+                - mkd
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MP_BUNDLE_ID)
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        ENABLE_HARDENED_RUNTIME: NO
+        ENABLE_APP_SANDBOX: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        GENERATE_INFOPLIST_FILE: NO
+  MarkPantherQuickLook:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: QuickLook
+        excludes:
+          - Info.plist
+          - MarkPantherQuickLook.entitlements
+      - path: App/Preview/AssetSchemeHandler.swift
+      - path: App/Resources/preview
+        type: folder
+    dependencies:
+      - package: MarkPantherCore
+    info:
+      path: QuickLook/Info.plist
+      properties:
+        CFBundleDisplayName: MarkPanther Quick Look
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.quicklook.preview
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).PreviewViewController
+          NSExtensionAttributes:
+            QLSupportedContentTypes:
+              - net.daringfireball.markdown
+            QLSupportsSearchableItems: false
+    entitlements:
+      path: QuickLook/MarkPantherQuickLook.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.files.user-selected.read-only: true
+        # WKWebView は拡張の中では、ローカル資産しか読まなくてもこれが無いと Web プロセスごと落ちる
+        com.apple.security.network.client: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MP_BUNDLE_ID).quicklook
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        ENABLE_HARDENED_RUNTIME: NO
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+
+  MarkPantherThumbnail:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Thumbnail
+        excludes:
+          - Info.plist
+          - MarkPantherThumbnail.entitlements
+    dependencies:
+      - package: MarkPantherCore
+    info:
+      path: Thumbnail/Info.plist
+      properties:
+        CFBundleDisplayName: MarkPanther Thumbnail
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.quicklook.thumbnail
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).ThumbnailProvider
+          NSExtensionAttributes:
+            QLSupportedContentTypes:
+              - net.daringfireball.markdown
+            QLThumbnailMinimumDimension: 16
+    entitlements:
+      path: Thumbnail/MarkPantherThumbnail.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.files.user-selected.read-only: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MP_BUNDLE_ID).thumbnail
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        ENABLE_HARDENED_RUNTIME: NO
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+
+  MarkPantherUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: MarkPanther
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(MP_BUNDLE_ID).uitests
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGN_STYLE: Manual
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  MarkPanther:
+    build:
+      targets:
+        MarkPanther: all
+    run:
+      config: Debug
+    test:
+      targets:
+        - MarkPantherUITests

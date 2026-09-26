@@ -1,0 +1,33 @@
+{
+  "name": "markpanther-web",
+  "type": "module",
+  "private": true,
+  "trustedDependencies": [],
+  "scripts": {
+    "vendor": "bun run scripts/vendor.ts",
+    "dev": "bun run dev/server.ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@socketsecurity/bun-security-scanner": "^1.1.2",
+    "@types/bun": "latest",
+    "happy-dom": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@highlightjs/cdn-assets": "^11.12.0",
+    "dompurify": "^3.4.15",
+    "idiomorph": "^0.8.0",
+    "js-yaml": "4.1.0",
+    "katex": "^0.18.7",
+    "markdown-it": "14.3.2",
+    "markdown-it-footnote": "^4.0.0",
+    "markdown-it-mark": "^4.0.0",
+    "markdown-it-sup": "^2.0.0",
+    "markdown-it-task-lists": "^2.1.1",
+    "markdown-it-texmath": "^1.0.0",
+    "mermaid": "^12.0.0"
+  }
+}

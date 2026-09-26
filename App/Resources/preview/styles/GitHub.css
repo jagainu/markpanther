@@ -1,0 +1,223 @@
+/*
+ * GitHub.css — 既定スタイル。GitHub 風の読みやすい配色・タイポグラフィ。
+ * ライト/ダークは prefers-color-scheme に自動追随する。
+ */
+
+:root {
+  --umk-fg: #1f2328;
+  --umk-bg: #ffffff;
+  --umk-muted: #656d76;
+  --umk-border: #d1d9e0;
+  --umk-code-bg: #f6f8fa;
+  --umk-link: #0969da;
+  --umk-blockquote-border: #d1d9e0;
+  --umk-table-alt-bg: #f6f8fa;
+  --umk-mark-bg: #fff8c5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --umk-fg: #e6edf3;
+    --umk-bg: #0d1117;
+    --umk-muted: #8d96a0;
+    --umk-border: #30363d;
+    --umk-code-bg: #161b22;
+    --umk-link: #4493f8;
+    --umk-blockquote-border: #30363d;
+    --umk-table-alt-bg: #161b22;
+    --umk-mark-bg: #4d3800;
+  }
+}
+
+html,
+body {
+  background: var(--umk-bg);
+  color: var(--umk-fg);
+}
+
+#content {
+  max-width: calc(860px * var(--markpanther-zoom, 1));
+  margin: 0 auto;
+  padding: 1.2em 1.5em 6em;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN",
+    "Yu Gothic",
+    "Segoe UI",
+    Helvetica,
+    Arial,
+    sans-serif;
+  font-size: calc(17px * var(--markpanther-zoom, 1));
+  line-height: 1.7;
+  word-wrap: break-word;
+}
+
+#content h1,
+#content h2,
+#content h3,
+#content h4,
+#content h5,
+#content h6 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 1.6em;
+  margin-bottom: 0.6em;
+}
+
+#content h1 {
+  font-size: 1.9em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--umk-border);
+}
+
+#content h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--umk-border);
+}
+
+#content h3 {
+  font-size: 1.25em;
+}
+
+#content h4 {
+  font-size: 1.1em;
+}
+
+#content h5,
+#content h6 {
+  font-size: 1em;
+  color: var(--umk-muted);
+}
+
+#content p,
+#content ul,
+#content ol {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+#content a {
+  color: var(--umk-link);
+  text-decoration: none;
+}
+
+#content a:hover {
+  text-decoration: underline;
+}
+
+#content blockquote {
+  margin: 0 0 1em;
+  padding: 0 1em;
+  color: var(--umk-muted);
+  border-left: 0.25em solid var(--umk-blockquote-border);
+}
+
+#content blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+#content hr {
+  height: 1px;
+  border: none;
+  background: var(--umk-border);
+  margin: 2em 0;
+}
+
+#content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1em;
+  overflow-x: auto;
+  display: block;
+}
+
+#content table th,
+#content table td {
+  border: 1px solid var(--umk-border);
+  padding: 0.4em 0.8em;
+}
+
+#content table tr:nth-child(2n) {
+  background: var(--umk-table-alt-bg);
+}
+
+#content code,
+#content .code-block code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.88em;
+}
+
+#content code {
+  background: var(--umk-code-bg);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+}
+
+#content .code-block {
+  background: var(--umk-code-bg);
+  border-radius: 6px;
+  padding: 1em;
+  margin-bottom: 1em;
+}
+
+#content .code-block code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+#content mark {
+  background: var(--umk-mark-bg);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 0.15em;
+}
+
+#content kbd {
+  display: inline-block;
+  padding: 0.15em 0.5em;
+  font-size: 0.85em;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  border: 1px solid var(--umk-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--umk-code-bg);
+}
+
+#content img {
+  background: var(--umk-bg);
+}
+
+#content sup,
+#content sub {
+  font-size: 0.75em;
+}
+
+/* footnotes（markdown-it-footnote） */
+#content .footnotes {
+  margin-top: 2em;
+  padding-top: 1em;
+  border-top: 1px solid var(--umk-border);
+  font-size: 0.9em;
+  color: var(--umk-muted);
+}
+
+/* task list（markdown-it-task-lists） */
+#content .contains-task-list {
+  padding-left: 1.5em;
+}
+
+/* frontmatter / TOC は preview.css 側（構造）＋ここでは色味だけ調整 */
+.frontmatter-table th {
+  color: var(--umk-muted);
+}
+
+.toc {
+  border: 1px solid var(--umk-border);
+  border-radius: 6px;
+  padding: 0.75em 1.25em;
+  background: var(--umk-code-bg);
+}

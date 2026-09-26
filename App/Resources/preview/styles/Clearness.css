@@ -1,0 +1,206 @@
+/*
+ * Clearness.css — 落ち着いたセリフ見出しの代替スタイル。
+ * 本文はヒューマニスト系サンセリフ、見出しのみセリフでコントラストを付ける。
+ */
+
+:root {
+  --umk-fg: #2b2622;
+  --umk-bg: #fbf8f3;
+  --umk-muted: #7a6f63;
+  --umk-border: #e2d9cc;
+  --umk-code-bg: #f1ece1;
+  --umk-link: #8a4b2f;
+  --umk-blockquote-border: #cbbfa9;
+  --umk-table-alt-bg: #f4efe6;
+  --umk-mark-bg: #f3e0a8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --umk-fg: #e8e1d6;
+    --umk-bg: #1b1815;
+    --umk-muted: #a89a89;
+    --umk-border: #3a342c;
+    --umk-code-bg: #262019;
+    --umk-link: #e0a479;
+    --umk-blockquote-border: #4a4236;
+    --umk-table-alt-bg: #232019;
+    --umk-mark-bg: #5c481c;
+  }
+}
+
+html,
+body {
+  background: var(--umk-bg);
+  color: var(--umk-fg);
+}
+
+#content {
+  max-width: calc(780px * var(--markpanther-zoom, 1));
+  margin: 0 auto;
+  padding: 3em 1.5em 6em;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", Georgia, serif;
+  font-size: calc(17px * var(--markpanther-zoom, 1));
+  line-height: 1.85;
+  word-wrap: break-word;
+}
+
+#content h1,
+#content h2,
+#content h3,
+#content h4,
+#content h5,
+#content h6 {
+  font-family: Georgia, "Hiragino Mincho ProN", "Yu Mincho", serif;
+  font-weight: 700;
+  line-height: 1.35;
+  margin-top: 1.8em;
+  margin-bottom: 0.7em;
+  letter-spacing: 0.01em;
+}
+
+#content h1 {
+  font-size: 2.1em;
+  border-bottom: 1px solid var(--umk-border);
+  padding-bottom: 0.35em;
+}
+
+#content h2 {
+  font-size: 1.6em;
+}
+
+#content h3 {
+  font-size: 1.3em;
+}
+
+#content h4 {
+  font-size: 1.1em;
+}
+
+#content h5,
+#content h6 {
+  font-size: 1em;
+  color: var(--umk-muted);
+}
+
+#content p,
+#content ul,
+#content ol {
+  margin-top: 0;
+  margin-bottom: 1.1em;
+}
+
+#content a {
+  color: var(--umk-link);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+#content blockquote {
+  margin: 0 0 1.1em;
+  padding: 0.2em 1.2em;
+  font-style: italic;
+  color: var(--umk-muted);
+  border-left: 3px solid var(--umk-blockquote-border);
+}
+
+#content blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+#content hr {
+  height: 1px;
+  border: none;
+  background: var(--umk-border);
+  margin: 2.5em 0;
+}
+
+#content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 1.1em;
+  overflow-x: auto;
+  display: block;
+  font-size: 0.95em;
+}
+
+#content table th,
+#content table td {
+  border: 1px solid var(--umk-border);
+  padding: 0.45em 0.9em;
+}
+
+#content table tr:nth-child(2n) {
+  background: var(--umk-table-alt-bg);
+}
+
+#content code,
+#content .code-block code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+
+#content code {
+  background: var(--umk-code-bg);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+}
+
+#content .code-block {
+  background: var(--umk-code-bg);
+  border-radius: 4px;
+  padding: 1.1em;
+  margin-bottom: 1.1em;
+}
+
+#content .code-block code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+#content mark {
+  background: var(--umk-mark-bg);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 0.15em;
+}
+
+#content kbd {
+  display: inline-block;
+  padding: 0.15em 0.5em;
+  font-size: 0.85em;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  border: 1px solid var(--umk-border);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background: var(--umk-code-bg);
+}
+
+#content sup,
+#content sub {
+  font-size: 0.75em;
+}
+
+#content .footnotes {
+  margin-top: 2.2em;
+  padding-top: 1em;
+  border-top: 1px solid var(--umk-border);
+  font-size: 0.9em;
+  color: var(--umk-muted);
+}
+
+#content .contains-task-list {
+  padding-left: 1.5em;
+}
+
+.frontmatter-table th {
+  color: var(--umk-muted);
+}
+
+.toc {
+  border: 1px solid var(--umk-border);
+  border-radius: 4px;
+  padding: 0.85em 1.3em;
+  background: var(--umk-code-bg);
+}
