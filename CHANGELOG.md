@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.1] - 2026-09-27
+
+- Fix: About MarkPanther showed version 1.0 instead of the real version
+
 ## [0.1.0] - 2026-09-23
 
 First public release.
