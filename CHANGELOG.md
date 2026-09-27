@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2] - 2026-09-27
+
+- New: Markdown files get a MarkPanther document icon
+- New: a file icon beside the title — drag it to move or copy the file,
+  ⌘-click for the folder path
+- Fix: the title bar area now drags the window (it used to select text in
+  the document underneath)
+- Fix: the path menu shows folder and file icons again
+
 ## [0.1.1] - 2026-09-27
 
 - Fix: About MarkPanther showed version 1.0 instead of the real version

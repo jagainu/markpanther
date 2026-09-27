@@ -7,8 +7,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.1.1"
-    CURRENT_PROJECT_VERSION: "2"
+    MARKETING_VERSION: "0.1.2"
+    CURRENT_PROJECT_VERSION: "3"
     # 手元・他人のソースビルドは .dev 付き。公式の配布ビルドだけ Makefile が
     # MP_BUNDLE_ID=dev.nijizo.markpanther で上書きする（同じ Mac で通知・設定が混ざらないように）
     MP_BUNDLE_ID: dev.nijizo.markpanther.dev
