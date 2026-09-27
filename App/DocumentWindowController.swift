@@ -146,6 +146,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         sidebarEdge.boxType = .separator
         sidebarEdge.translatesAutoresizingMaskIntoConstraints = false
         sidebar.addSubview(sidebarEdge)
+        // 信号ボタンの並ぶサイドバー上端も、タイトルバーと同じくつかんでウィンドウを動かせるようにする
+        let sidebarDragArea = WindowDragArea()
+        sidebarDragArea.translatesAutoresizingMaskIntoConstraints = false
+        sidebar.addSubview(sidebarDragArea)
         root.addSubview(sidebarPanel)
 
         statusBar.translatesAutoresizingMaskIntoConstraints = false
@@ -192,6 +196,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             outline.leadingAnchor.constraint(equalTo: sidebarPanel.leadingAnchor),
             outline.trailingAnchor.constraint(equalTo: sidebarPanel.trailingAnchor),
             outline.bottomAnchor.constraint(equalTo: sidebarPanel.bottomAnchor),
+            sidebarDragArea.topAnchor.constraint(equalTo: sidebarPanel.topAnchor),
+            sidebarDragArea.leadingAnchor.constraint(equalTo: sidebarPanel.leadingAnchor),
+            sidebarDragArea.trailingAnchor.constraint(equalTo: sidebarPanel.trailingAnchor),
+            sidebarDragArea.bottomAnchor.constraint(equalTo: outline.topAnchor),
             sidebarEdge.topAnchor.constraint(equalTo: sidebarPanel.topAnchor),
             sidebarEdge.bottomAnchor.constraint(equalTo: sidebarPanel.bottomAnchor),
             sidebarEdge.trailingAnchor.constraint(equalTo: sidebarPanel.trailingAnchor),

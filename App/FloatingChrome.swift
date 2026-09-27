@@ -199,6 +199,7 @@ final class FloatingChrome {
     var actions = Actions()
 
     private let titleLabel = PathTitleLabel(labelWithString: "")
+    private let proxyIcon = DocumentProxyIcon()
     let updateIndicator = UpdateIndicator()
     private let modeSwitch = ModeSwitch(items: [("Edit", "square.and.pencil"), ("Preview", "eye")])  // 並びは Edit | Preview
 
@@ -244,21 +245,24 @@ final class FloatingChrome {
         modeSwitch.onSelect = { [weak self] index in self?.actions.selectEditing(index == 0) }
         modeGroup = Glass.capsule([modeSwitch], horizontalPadding: 2)
 
-        for view in [sidebarCapsule!, titleLabel, updateIndicator, formatGroup!, toolsGroup!, modeGroup!] as [NSView] {
+        for view in [sidebarCapsule!, proxyIcon, titleLabel, updateIndicator, formatGroup!, toolsGroup!, modeGroup!] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
             root.addSubview(view)
         }
 
         let inset = ChromeSpec.windowInset
-        let topRow: [NSView] = [sidebarCapsule, titleLabel, updateIndicator, formatGroup, toolsGroup, modeGroup]
+        let topRow: [NSView] = [sidebarCapsule, proxyIcon, titleLabel, updateIndicator, formatGroup, toolsGroup, modeGroup]
         topCenterConstraints = topRow.map { $0.centerYAnchor.constraint(equalTo: root.topAnchor, constant: 19) }
-        titleLeading = titleLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: Self.titleLeadingClosed)
+        titleLeading = proxyIcon.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: Self.titleLeadingClosed)
         // 書式カプセルが出ているあいだだけ、ファイル名はその手前で止める（隠れているときは右の検索ボタンまで使える）
         titleYieldsToFormat = titleLabel.trailingAnchor.constraint(
             lessThanOrEqualTo: formatGroup.leadingAnchor, constant: -ChromeSpec.groupSpacing)
         NSLayoutConstraint.activate(topCenterConstraints + [
             sidebarCapsule.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: ChromeSpec.trafficLightClearance),
             titleLeading,
+            proxyIcon.widthAnchor.constraint(equalToConstant: 16),
+            proxyIcon.heightAnchor.constraint(equalToConstant: 16),
+            titleLabel.leadingAnchor.constraint(equalTo: proxyIcon.trailingAnchor, constant: 5),
             modeGroup.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -inset),
             toolsGroup.trailingAnchor.constraint(equalTo: modeGroup.leadingAnchor, constant: -ChromeSpec.groupSpacing),
             formatGroup.centerXAnchor.constraint(equalTo: root.centerXAnchor),
@@ -278,7 +282,9 @@ final class FloatingChrome {
     func setTitle(_ title: String, fileURL: URL?) {
         titleLabel.stringValue = title
         titleLabel.fileURL = fileURL
+        proxyIcon.fileURL = fileURL
         titleLabel.toolTip = fileURL.map { ($0.path as NSString).abbreviatingWithTildeInPath }
+        proxyIcon.toolTip = titleLabel.toolTip
     }
 
     /// サイドバーが開いているあいだ、ファイル名は本文側の左端へ寄せる（メモや Finder と同じ並び）。
@@ -298,14 +304,43 @@ final class FloatingChrome {
         formatGroup.isHidden = !isEditing || width < 760
         titleYieldsToFormat.isActive = !formatGroup.isHidden
         titleLabel.isHidden = width < 520
+        proxyIcon.isHidden = titleLabel.isHidden || titleLabel.fileURL == nil
         // 編集時は中央の書式カプセルと場所を取り合うので、幅に余裕があるときだけ出す
         updateIndicator.alphaValue = (isEditing && width < 1000) || width < 640 ? 0 : 1
     }
 
 }
 
+/// ヘッダでのウィンドウ移動。fullSizeContentView では、タイトルバーの高さにある本文（WKWebView・エディタ）が
+/// クリックを先に受けてしまい、標準のタイトルバーのドラッグが効かない。ヘッダ側で受けて自分で動かす。
+@MainActor
+enum WindowDrag {
+    static func handle(_ event: NSEvent, in window: NSWindow?) {
+        guard let window else { return }
+        if event.clickCount == 2 {
+            performDoubleClickAction(window)
+        } else {
+            window.performDrag(with: event)
+        }
+    }
+
+    /// システム設定「タイトルバーをダブルクリックしたとき」に従う。値が無ければ標準の拡大/縮小
+    private static func performDoubleClickAction(_ window: NSWindow) {
+        switch UserDefaults.standard.string(forKey: "AppleActionOnDoubleClick") {
+        case "Minimize": window.performMiniaturize(nil)
+        case "None": break
+        default: window.performZoom(nil)
+        }
+    }
+}
+
+/// つかむとウィンドウが動くだけの透明な面。サイドバー上端など、ヘッダ帯の外にある余白に敷く。
+final class WindowDragArea: NSView {
+    override func mouseDown(with event: NSEvent) { WindowDrag.handle(event, in: window) }
+}
+
 /// 上段のカプセルの背後に敷く、半透明（すりガラス）のヘッダ帯。スクロールした本文とカプセルが直接重ならないようにする。
-/// クリックは受けない（ウィンドウのドラッグはタイトルバー領域として従来どおり効く）。
+/// 余白をつかむとウィンドウが動く（WindowDrag）。カプセルやファイル名はこれより上に載っているので、そちらが先に受ける。
 final class HeaderBackdropView: NSVisualEffectView {
     private let hairline = NSBox()
 
@@ -326,7 +361,12 @@ final class HeaderBackdropView: NSVisualEffectView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        // 区切り線などの子ビューではなく、帯そのものがクリックを受ける
+        super.hitTest(point) == nil ? nil : self
+    }
+
+    override func mouseDown(with event: NSEvent) { WindowDrag.handle(event, in: window) }
 }
 
 /// ヘッダのファイル名の右に出す更新表示。外部からの上書きを反映した瞬間はアクセント色のピルで目立たせ、
@@ -439,18 +479,45 @@ final class UpdateIndicator: NSView {
     @objc private func clicked() { onClick?() }
 }
 
-/// ヘッダのファイル名。標準のタイトルバー（タイトル + プロキシアイコン）の役割を兼ねる:
-/// ⌘+クリック / 右クリックでパスのメニューを出して選んだ階層を Finder で開き、ドラッグするとファイルそのものを
-/// 運べる（Finder へ落とせば移動、⌥ でコピー、ターミナルへ落とせばパス）。ウィンドウの移動はヘッダの余白で行う。
-final class PathTitleLabel: NSTextField, NSDraggingSource {
+/// ヘッダのファイル名。標準のタイトルバーのタイトルと同じふるまい: つかむとウィンドウが動き、
+/// ⌘+クリック / 右クリックでパスのメニュー。ファイルそのものを運ぶのは左隣の DocumentProxyIcon。
+final class PathTitleLabel: NSTextField {
     var fileURL: URL?
-    private var mouseDownEvent: NSEvent?
 
     override func mouseDown(with event: NSEvent) {
         if event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control) {
-            showPathMenu(with: event)
-        } else if fileURL == nil {
-            window?.performDrag(with: event)  // 未保存の文書には運ぶファイルが無い
+            PathMenu.show(for: fileURL, from: self)
+        } else {
+            WindowDrag.handle(event, in: window)
+        }
+    }
+
+    override func rightMouseDown(with event: NSEvent) { PathMenu.show(for: fileURL, from: self) }
+}
+
+/// ファイル名の左の書類アイコン（標準のタイトルバーのプロキシアイコン）。ドラッグするとファイルそのものを
+/// 運べる（Finder へ落とせば移動、⌥ でコピー、ターミナルへ落とせばパス）。⌘+クリック / 右クリックでパスのメニュー。
+final class DocumentProxyIcon: NSImageView, NSDraggingSource {
+    var fileURL: URL? {
+        didSet {
+            image = fileURL.map { DocumentIcon.image(for: $0) }
+            isHidden = fileURL == nil
+        }
+    }
+    private var mouseDownEvent: NSEvent?
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        imageScaling = .scaleProportionallyUpOrDown
+        isHidden = true
+        setAccessibilityIdentifier("documentProxyIcon")
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func mouseDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control) {
+            PathMenu.show(for: fileURL, from: self)
         } else {
             mouseDownEvent = event
         }
@@ -464,7 +531,7 @@ final class PathTitleLabel: NSTextField, NSDraggingSource {
         mouseDownEvent = nil
 
         let item = NSDraggingItem(pasteboardWriter: fileURL as NSURL)
-        let icon = NSWorkspace.shared.icon(forFile: fileURL.path)
+        let icon = DocumentIcon.image(for: fileURL)
         icon.size = NSSize(width: 32, height: 32)
         let point = convert(start.locationInWindow, from: nil)
         item.setDraggingFrame(NSRect(x: point.x - 16, y: point.y - 16, width: 32, height: 32), contents: icon)
@@ -473,29 +540,64 @@ final class PathTitleLabel: NSTextField, NSDraggingSource {
 
     override func mouseUp(with event: NSEvent) { mouseDownEvent = nil }
 
+    override func rightMouseDown(with event: NSEvent) { PathMenu.show(for: fileURL, from: self) }
+
     func draggingSession(_ session: NSDraggingSession,
                          sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         [.copy, .move, .link, .generic]
     }
+}
 
-    override func rightMouseDown(with event: NSEvent) { showPathMenu(with: event) }
+/// ウィンドウの中で見せるファイルのアイコン。Markdown は、既定のアプリが何であっても MarkPanther の
+/// 書類アイコンを出す（自分の書類として開いているので）。それ以外は Finder と同じもの。
+@MainActor
+enum DocumentIcon {
+    private static let markdownExtensions: Set<String> = ["md", "markdown", "mdown", "mkd"]
 
-    private func showPathMenu(with event: NSEvent) {
+    static func image(for url: URL) -> NSImage {
+        if markdownExtensions.contains(url.pathExtension.lowercased()),
+           let icon = NSImage(named: "MarkdownDocument")?.copy() as? NSImage {
+            return icon
+        }
+        return NSWorkspace.shared.icon(forFile: url.path)
+    }
+}
+
+/// ファイルから上の階層を並べたメニュー。選んだ階層を Finder で開く。
+@MainActor
+enum PathMenu {
+    static func show(for fileURL: URL?, from view: NSView) {
         guard let fileURL else { return }
         let menu = NSMenu()
         menu.autoenablesItems = false
         for url in PathBreadcrumb.components(of: fileURL) {
-            let item = NSMenuItem(title: Self.displayName(of: url), action: #selector(openInFinder(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = url
-            let icon = NSWorkspace.shared.icon(forFile: url.path)
+            let title = displayName(of: url)
+            let item = NSMenuItem(title: title, action: #selector(Opener.open(_:)), keyEquivalent: "")
+            item.target = Opener.shared
+            item.representedObject = PathMenuTarget(url: url, isFile: url == fileURL.standardizedFileURL)
+            let icon = DocumentIcon.image(for: url)
             icon.size = NSSize(width: 16, height: 16)
             item.image = icon
+            // macOS 27（Xcode 27 SDK）では NSMenuItem.image が描画されない。タイトルに画像を埋め込んで出す
+            // （Thoughtree の NSMenuItemImageFallback と同じ回避策）。直れば image のほうが効く
+            item.attributedTitle = attributedTitle(title, icon: icon)
             menu.addItem(item)
         }
-        // 標準のタイトルバーと同じく、ラベルのすぐ下に先頭の項目（ファイル自身）が重なる位置へ出す
-        let origin = NSPoint(x: -22, y: isFlipped ? bounds.maxY + 4 : bounds.minY - 4)
-        menu.popUp(positioning: nil, at: origin, in: self)
+        // 先頭の項目（ファイル自身）のアイコンと名前が、ヘッダの書類アイコンとファイル名の真下に揃う位置へ出す。
+        // ファイル名はアイコン（16pt + 間隔 5pt）のぶん右にあるので、そこから開くときはその分さらに左へ
+        let x: CGFloat = view is DocumentProxyIcon ? -13 : -34
+        let origin = NSPoint(x: x, y: view.isFlipped ? view.bounds.maxY + 4 : view.bounds.minY - 4)
+        menu.popUp(positioning: nil, at: origin, in: view)
+    }
+
+    private static func attributedTitle(_ title: String, icon: NSImage) -> NSAttributedString {
+        let attachment = NSTextAttachment()
+        attachment.image = icon
+        attachment.bounds = CGRect(x: 0, y: -3, width: icon.size.width, height: icon.size.height)
+        let result = NSMutableAttributedString(attachment: attachment)
+        result.append(NSAttributedString(string: "  " + title))
+        result.addAttribute(.font, value: NSFont.menuFont(ofSize: 0), range: NSRange(location: 0, length: result.length))
+        return result
     }
 
     private static func displayName(of url: URL) -> String {
@@ -505,12 +607,22 @@ final class PathTitleLabel: NSTextField, NSDraggingSource {
         return FileManager.default.displayName(atPath: url.path)
     }
 
-    @objc private func openInFinder(_ sender: NSMenuItem) {
-        guard let url = sender.representedObject as? URL else { return }
-        if url == fileURL?.standardizedFileURL {
-            NSWorkspace.shared.activateFileViewerSelecting([url])  // ファイル自身は、選択した状態で表示する
-        } else {
-            NSWorkspace.shared.open(url)
+    private struct PathMenuTarget {
+        let url: URL
+        let isFile: Bool
+    }
+
+    @MainActor
+    private final class Opener: NSObject {
+        static let shared = Opener()
+
+        @objc func open(_ sender: NSMenuItem) {
+            guard let target = sender.representedObject as? PathMenuTarget else { return }
+            if target.isFile {
+                NSWorkspace.shared.activateFileViewerSelecting([target.url])  // ファイル自身は、選択した状態で表示する
+            } else {
+                NSWorkspace.shared.open(target.url)
+            }
         }
     }
 }

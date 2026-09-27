@@ -80,6 +80,8 @@ Add a hook to `~/.claude/settings.json` (or a project's `.claude/settings.json`)
   frontmatter, `[TOC]`, footnotes, task lists
 - Outline (⌃⌘S), jump to heading (⌥⌘J), find (⌘F, works in preview too), zoom
 - Quick Open of recent files (⌘O)
+- Title bar like a native document window: drag the file icon to move or copy
+  the file, ⌘-click the title for its folder path
 - Copy button on code blocks
 - Notifications when a file changes while MarkPanther is in the background —
   bursts of writes are grouped into one
