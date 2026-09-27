@@ -44,6 +44,8 @@ targets:
         CFBundleDocumentTypes:
           - CFBundleTypeName: Markdown Document
             CFBundleTypeRole: Editor
+            # 書類アイコン。design/make-document-icon.swift で生成する
+            CFBundleTypeIconFile: MarkdownDocument
             LSHandlerRank: Alternate
             LSItemContentTypes:
               - net.daringfireball.markdown
