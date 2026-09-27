@@ -45,6 +45,31 @@ markp -g notes.md   # フォーカスを奪わずに裏で開く
 
 `markp` が見つからないときは、`~/.local/bin` を `PATH` に足してください。
 
+## アップデート
+
+どの旧バージョンからでも同じ手順です。設定・最近開いたファイル・通知の許可は引き継がれます。
+
+1. MarkPanther を終了する（⌘Q）
+2. [最新リリース](https://github.com/jagainu/markpanther/releases/latest) から `MarkPanther.zip` を
+   ダウンロードして展開し、`MarkPanther.app` を**アプリケーション**フォルダへ移して「置き換える」を選ぶ
+3. 開く。**MarkPanther → About MarkPanther** でバージョンを確認できます
+
+ターミナルからなら（古い版はゴミ箱へ移します）:
+
+```sh
+osascript -e 'quit app id "dev.nijizo.markpanther"'
+while pgrep -qf /Applications/MarkPanther.app/Contents/MacOS; do sleep 0.5; done
+d=$(mktemp -d)
+curl -fL -o "$d/MarkPanther.zip" https://github.com/jagainu/markpanther/releases/latest/download/MarkPanther.zip
+ditto -x -k "$d/MarkPanther.zip" "$d"
+mv /Applications/MarkPanther.app ~/.Trash/"MarkPanther $(date +%Y%m%d-%H%M%S).app"
+mv "$d/MarkPanther.app" /Applications/
+open /Applications/MarkPanther.app
+```
+
+`markp` コマンドは、リリースノートに書いていない限り入れ直す必要はありません。
+なお 0.1.0 は About に「1.0」と表示されます（0.1.1 で直した不具合です）。
+
 ## Claude Code が書いた md を自動で開く
 
 `~/.claude/settings.json`（またはプロジェクトの `.claude/settings.json`）にフックを足します。

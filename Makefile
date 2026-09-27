@@ -3,6 +3,7 @@ BUILD    := build
 BIN_DIR  ?= $(HOME)/.local/bin
 CORE     := Packages/MarkPantherCore
 DIST     := $(BUILD)/dist
+LSREGISTER := /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
 # 署名。既定は ad-hoc で、手元で動かすぶんにはこれで足りる。
 # 配る物は Developer ID で署名して公証する — signed / notarize / dist を使う。
@@ -81,6 +82,9 @@ notarize: signed
 dist: notarize
 	ditto -c -k --keepParent $(BUILD)/Build/Products/Release/$(APP).app $(DIST)/$(APP).zip
 	spctl -a -vvv $(BUILD)/Build/Products/Release/$(APP).app
+	@# ビルドフォルダの配布ビルドは /Applications の公式版と同じ Bundle ID。Launch Services に登録されたままだと、
+	@# Quick Look やサムネイルの拡張がこちらから動いたり、open が取り違えたりするので登録を外す
+	$(LSREGISTER) -u $(BUILD)/Build/Products/Release/$(APP).app
 	@echo "配布用: $(DIST)/$(APP).zip"
 
 # GitHub Releases に出す。版は project.yml の MARKETING_VERSION、本文は CHANGELOG.md の同じ版の節。

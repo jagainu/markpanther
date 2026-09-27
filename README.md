@@ -49,6 +49,34 @@ markp -g notes.md   # open in the background without stealing focus
 
 If `markp` isn't found, add `~/.local/bin` to your `PATH`.
 
+## Update
+
+The same steps work from any earlier version. Your settings, recent files and
+notification permission carry over.
+
+1. Quit MarkPanther (⌘Q).
+2. Download `MarkPanther.zip` from the
+   [latest release](https://github.com/jagainu/markpanther/releases/latest),
+   unzip it, and move `MarkPanther.app` to **Applications**, choosing
+   **Replace**.
+3. Open it. **MarkPanther → About MarkPanther** shows the version.
+
+Or from Terminal (the old version goes to the Trash):
+
+```sh
+osascript -e 'quit app id "dev.nijizo.markpanther"'
+while pgrep -qf /Applications/MarkPanther.app/Contents/MacOS; do sleep 0.5; done
+d=$(mktemp -d)
+curl -fL -o "$d/MarkPanther.zip" https://github.com/jagainu/markpanther/releases/latest/download/MarkPanther.zip
+ditto -x -k "$d/MarkPanther.zip" "$d"
+mv /Applications/MarkPanther.app ~/.Trash/"MarkPanther $(date +%Y%m%d-%H%M%S).app"
+mv "$d/MarkPanther.app" /Applications/
+open /Applications/MarkPanther.app
+```
+
+You don't need to reinstall the `markp` command unless the release notes say
+so. Version 0.1.0 shows "1.0" in About — a bug fixed in 0.1.1.
+
 ## Open files as Claude Code writes them
 
 Add a hook to `~/.claude/settings.json` (or a project's `.claude/settings.json`):
