@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.3] - 2026-09-28
+
+- Fix: in tables, a row where text was removed no longer shifts its cells
+  one column to the right
+
 ## [0.1.2] - 2026-09-27
 
 - New: Markdown files get a MarkPanther document icon
