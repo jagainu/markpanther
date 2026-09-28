@@ -156,3 +156,27 @@ describe("プレビューに置く削除の印", () => {
     expect(block.classList.contains("markpanther-removal-only")).toBe(false);
   });
 });
+
+describe("表の行に置く削除の印", () => {
+  const markers = () =>
+    Array.from(document.querySelectorAll(".markpanther-removed"));
+
+  // セルの中身が丸ごと消えると、消えた位置はセルの境目になる。そこは tr 直下の
+  // 改行ノードに当たりやすく、印が tr の子になると匿名セル扱いで列が1つずれる
+  test("セルの中身が丸ごと消えても、印は必ずセルの中に入る", async () => {
+    const table = (mid: string) =>
+      `| a | b | c | d |\n|---|---|---|---|\n| 行 | 名前 | ${mid} | 残る |\n`;
+    await preview.render(table("消える本文です"), null, {});
+    await preview.render(table(" "), null, { markChanges: true });
+
+    const found = markers();
+    expect(found.length).toBeGreaterThan(0);
+    for (const m of found) {
+      expect(["TD", "TH"]).toContain(m.parentElement!.tagName);
+    }
+    const row = document.querySelectorAll("tbody tr")[0];
+    for (const child of Array.from(row.children)) {
+      expect(["TD", "TH"]).toContain(child.tagName);
+    }
+  });
+});

@@ -1374,6 +1374,9 @@ function insertRemovalMarkers(el, removals) {
     if (range) points.push({ range: range, text: removal.text });
   });
   points.forEach(function (point) {
+    point.range = moveRangeIntoCell(point.range);
+  });
+  points.forEach(function (point) {
     var marker = document.createElement("span");
     marker.className = REMOVED_CLASS;
     marker.setAttribute("data-removed", point.text);
@@ -1384,6 +1387,35 @@ function insertRemovalMarkers(el, removals) {
       /* 位置が解決できなければ黙って諦める（本文の表示を壊さない方を優先） */
     }
   });
+}
+
+var TABLE_STRUCTURE_TAGS = { TABLE: 1, THEAD: 1, TBODY: 1, TFOOT: 1, TR: 1 };
+
+/**
+ * セルの境目は tr 直下の改行ノードに当たることがある。そこへ印を挿すと tr の子になり、
+ * ブラウザが匿名セルとして描くので列が1つずれる。改行の後ろ側なら次のセルの先頭、
+ * 手前側なら前のセルの末尾へ寄せる。
+ */
+function moveRangeIntoCell(range) {
+  var node = range.startContainer;
+  var parent = node.nodeType === 3 ? node.parentNode : node;
+  if (!parent || !TABLE_STRUCTURE_TAGS[parent.tagName]) return range;
+  var isCell = function (n) { return n && (n.tagName === "TD" || n.tagName === "TH"); };
+  var next = node.nextSibling;
+  while (next && !isCell(next)) next = next.nextSibling;
+  var prev = node.previousSibling;
+  while (prev && !isCell(prev)) prev = prev.previousSibling;
+  var moved = document.createRange();
+  if (next && (range.startOffset > 0 || !prev)) {
+    moved.setStart(next, 0);
+  } else if (prev) {
+    moved.selectNodeContents(prev);
+    moved.collapse(false);
+  } else {
+    return range;
+  }
+  moved.collapse(true);
+  return moved;
 }
 
 var REMOVAL_ONLY_CLASS = "markpanther-removal-only";
