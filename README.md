@@ -77,7 +77,12 @@ open /Applications/MarkPanther.app
 You don't need to reinstall the `markp` command unless the release notes say
 so. Version 0.1.0 shows "1.0" in About — a bug fixed in 0.1.1.
 
-## Open files as Claude Code writes them
+## Open files as your AI agent writes them
+
+Both hooks below need [jq](https://jqlang.org) (`brew install jq`) and the
+`markp` command.
+
+### Claude Code
 
 Add a hook to `~/.claude/settings.json` (or a project's `.claude/settings.json`):
 
@@ -101,6 +106,35 @@ Add a hook to `~/.claude/settings.json` (or a project's `.claude/settings.json`)
 
 **File → Open Latest Claude Plan** (⌥⌘L) opens the newest plan in
 `~/.claude/plans`.
+
+### Codex
+
+Add a hook to `~/.codex/hooks.json` (or a project's `.codex/hooks.json`).
+Codex edits files with `apply_patch`, so the hook reads the file paths out of
+the patch:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.cwd as $d | (.tool_input.command // \"\") | split(\"\\n\")[] | capture(\"^\\\\*\\\\*\\\\* (Add File|Update File|Move to): (?<p>.+)$\")? | .p | if startswith(\"/\") then . else $d + \"/\" + . end' | grep -E '\\.(md|markdown)$' | while IFS= read -r f; do markp -g \"$f\"; done"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Then run `/hooks` in Codex and trust the hook — Codex doesn't run a hook until
+you have reviewed it, and asks again whenever it changes. A project's
+`.codex/hooks.json` is loaded only when you trust that project. Files that
+Codex writes through shell commands instead of `apply_patch` aren't picked up.
 
 ## Features
 

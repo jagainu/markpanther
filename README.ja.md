@@ -70,7 +70,11 @@ open /Applications/MarkPanther.app
 `markp` コマンドは、リリースノートに書いていない限り入れ直す必要はありません。
 なお 0.1.0 は About に「1.0」と表示されます（0.1.1 で直した不具合です）。
 
-## Claude Code が書いた md を自動で開く
+## AI エージェントが書いた md を自動で開く
+
+どちらのフックも [jq](https://jqlang.org)（`brew install jq`）と `markp` コマンドが必要です。
+
+### Claude Code
 
 `~/.claude/settings.json`（またはプロジェクトの `.claude/settings.json`）にフックを足します。
 
@@ -93,6 +97,33 @@ open /Applications/MarkPanther.app
 ```
 
 **File → Open Latest Claude Plan**（⌥⌘L）で `~/.claude/plans` の最新プランを開けます。
+
+### Codex
+
+`~/.codex/hooks.json`（またはプロジェクトの `.codex/hooks.json`）にフックを足します。
+Codex はファイルを `apply_patch` で編集するので、パッチの中からファイルのパスを取り出して開きます。
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.cwd as $d | (.tool_input.command // \"\") | split(\"\\n\")[] | capture(\"^\\\\*\\\\*\\\\* (Add File|Update File|Move to): (?<p>.+)$\")? | .p | if startswith(\"/\") then . else $d + \"/\" + . end' | grep -E '\\.(md|markdown)$' | while IFS= read -r f; do markp -g \"$f\"; done"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+そのあと Codex で `/hooks` を開き、このフックを信頼してください。Codex は中身を確認して信頼したフックしか
+動かさず、フックを書き換えると確認をやり直します。プロジェクトの `.codex/hooks.json` は、そのプロジェクトを
+信頼したときだけ読み込まれます。`apply_patch` ではなくシェルのコマンドで書いたファイルは拾えません。
 
 ## 機能
 
