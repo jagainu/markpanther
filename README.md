@@ -65,7 +65,7 @@ Or from Terminal (the old version goes to the Trash):
 
 ```sh
 osascript -e 'quit app id "dev.nijizo.markpanther"'
-while pgrep -qf /Applications/MarkPanther.app/Contents/MacOS; do sleep 0.5; done
+while [ "$(osascript -e 'application id "dev.nijizo.markpanther" is running')" = true ]; do sleep 0.5; done
 d=$(mktemp -d)
 curl -fL -o "$d/MarkPanther.zip" https://github.com/jagainu/markpanther/releases/latest/download/MarkPanther.zip
 ditto -x -k "$d/MarkPanther.zip" "$d"
