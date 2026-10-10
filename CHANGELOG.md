@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.4] - 2026-10-11
 
 - Fix: confirming Japanese (or other input method) text with Return could insert
   a line break. Autosave mistook its own write for an outside change and reloaded
