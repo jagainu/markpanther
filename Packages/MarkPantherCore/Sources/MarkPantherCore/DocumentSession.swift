@@ -73,8 +73,9 @@ public final class DocumentSession: @unchecked Sendable {
 
     private let autosaveDelay: TimeInterval
     private let scheduler: SessionScheduler
-    /// Last buffer content known to match disk exactly. Used to distinguish a "clean"
-    /// buffer (safe to overwrite with external changes) from a "dirty" one (conflict).
+    /// What is on disk as far as we know: the content we last read or wrote, exactly as
+    /// written (including a newline added by ensureTrailingNewline). A change on disk that
+    /// matches it is our own write echoing back, not an external edit.
     private var lastSynced: String
     private var pendingSave: SessionCancellable?
     private var watcher: FileWatcher?
@@ -145,8 +146,7 @@ public final class DocumentSession: @unchecked Sendable {
         pendingSave = nil
         guard state == .dirty, let url = fileURL else { return }
         do {
-            try writeAtomic(buffer, to: url)
-            lastSynced = buffer
+            lastSynced = try writeAtomic(buffer, to: url)
             state = .synced
         } catch {
             onError?(error)
@@ -166,9 +166,8 @@ public final class DocumentSession: @unchecked Sendable {
     public func saveAs(_ url: URL) throws {
         pendingSave?.cancel()
         pendingSave = nil
-        try writeAtomic(buffer, to: url)
+        lastSynced = try writeAtomic(buffer, to: url)
         fileURL = url
-        lastSynced = buffer
         state = .synced
         capturePermissions(at: url)
         restartWatcher()
@@ -194,8 +193,8 @@ public final class DocumentSession: @unchecked Sendable {
         capturePermissions(at: url)
 
         if disk == buffer {
-            // Our own autosave (or an external write that happens to match). Nothing
-            // to notify — just record that disk and buffer agree.
+            // An external write that happens to match the buffer. Nothing to notify —
+            // just record that disk and buffer agree.
             lastSynced = disk
             if state == .missing {
                 state = .synced
@@ -203,7 +202,17 @@ public final class DocumentSession: @unchecked Sendable {
             return
         }
 
-        if buffer == lastSynced {
+        if disk == lastSynced {
+            // Our own autosave echoing back (it may differ from the buffer by the newline
+            // ensureTrailingNewline added, or the user may have typed on since). Leave the
+            // buffer alone: replacing it would disturb typing and an input method mid-composition.
+            if state == .missing {
+                state = savedForm(buffer) == disk ? .synced : .dirty
+            }
+            return
+        }
+
+        if savedForm(buffer) == lastSynced {
             // Buffer had no unsaved edits — safe to accept the external change.
             buffer = disk
             lastSynced = disk
@@ -233,8 +242,7 @@ public final class DocumentSession: @unchecked Sendable {
             }
         case .keepMine:
             do {
-                try writeAtomic(buffer, to: url)
-                lastSynced = buffer
+                lastSynced = try writeAtomic(buffer, to: url)
                 state = .synced
             } catch {
                 onError?(error)
@@ -275,11 +283,15 @@ public final class DocumentSession: @unchecked Sendable {
         throw DocumentSessionError.decodingFailed
     }
 
-    private func writeAtomic(_ text: String, to url: URL) throws {
-        var content = text
-        if ensureTrailingNewline, !content.hasSuffix("\n") {
-            content += "\n"
-        }
+    /// The text as it would be written to disk.
+    private func savedForm(_ text: String) -> String {
+        ensureTrailingNewline && !text.hasSuffix("\n") ? text + "\n" : text
+    }
+
+    /// Writes the buffer and returns exactly what went to disk.
+    @discardableResult
+    private func writeAtomic(_ text: String, to url: URL) throws -> String {
+        let content = savedForm(text)
         guard let data = content.data(using: .utf8) else {
             throw DocumentSessionError.encodingFailed
         }
@@ -287,6 +299,7 @@ public final class DocumentSession: @unchecked Sendable {
         if let permissions = cachedPermissions {
             try? FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: url.path)
         }
+        return content
     }
 
     private func capturePermissions(at url: URL) {
