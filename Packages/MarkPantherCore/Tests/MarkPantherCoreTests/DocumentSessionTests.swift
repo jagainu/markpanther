@@ -338,6 +338,45 @@ final class DocumentSessionTests: XCTestCase {
         XCTAssertEqual(saved, "line1-edited\n")
     }
 
+    /// 末尾に改行を足して保存したあと、自分の書き込みが監視に引っかかっても「外部の変更」として
+    /// エディタの中身を差し替えてはいけない（入力中・日本語の変換中の文字が壊れる）。
+    func test_ensureTrailingNewline_ownSaveEcho_doesNotReplaceEditorText() throws {
+        let url = try makeTempFile(content: "line1\n")
+        let scheduler = FakeScheduler()
+        let session = DocumentSession(fileURL: url, scheduler: scheduler)
+        try session.load()
+        session.ensureTrailingNewline = true
+        var received: String?
+        session.onExternalUpdate = { received = $0 }
+
+        session.userEdited("line1\nline2")
+        scheduler.fireLatest()
+        session.fileDidChangeOnDisk()
+
+        XCTAssertNil(received)
+        XCTAssertEqual(session.buffer, "line1\nline2")
+        XCTAssertEqual(session.state, .synced)
+    }
+
+    func test_ensureTrailingNewline_externalChangeAfterSave_isStillApplied() throws {
+        let url = try makeTempFile(content: "line1\n")
+        let scheduler = FakeScheduler()
+        let session = DocumentSession(fileURL: url, scheduler: scheduler)
+        try session.load()
+        session.ensureTrailingNewline = true
+        var received: String?
+        session.onExternalUpdate = { received = $0 }
+
+        session.userEdited("line1\nline2")
+        scheduler.fireLatest()
+        session.fileDidChangeOnDisk()
+        try "rewritten by an agent\n".write(to: url, atomically: true, encoding: .utf8)
+        session.fileDidChangeOnDisk()
+
+        XCTAssertEqual(received, "rewritten by an agent\n")
+        XCTAssertEqual(session.state, .synced)
+    }
+
     // MARK: - permissions
 
     func test_permissionsPreservedAcrossAutosave() throws {

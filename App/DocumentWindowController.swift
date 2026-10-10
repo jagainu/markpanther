@@ -467,7 +467,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     // MARK: - Session callbacks
 
     private func externalUpdate(_ text: String) {
-        editor.replaceAll(with: text)
+        editor.replaceAll(with: text, undoable: true)
         scheduleWordCount()
         scheduleOutline()
         // 反映に気づけるよう、ヘッダのファイル名の右に知らせる（変更数は描画後に上書きされる）

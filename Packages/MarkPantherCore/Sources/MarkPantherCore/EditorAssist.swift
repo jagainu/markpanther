@@ -37,6 +37,7 @@ public struct EditorAssist: Sendable {
             return interceptTab(ns, range: range)
         }
         if replacement.isEmpty && range.length == 1 {
+            if let edit = interceptBackspaceAfterListMarker(ns, range: range) { return edit }
             return interceptBackspacePairDeletion(ns, range: range)
         }
         if replacement.utf16.count == 1, let ch = replacement.first {
@@ -70,12 +71,17 @@ public struct EditorAssist: Sendable {
             return continueIndentationOnly(lineText, at: location)
         }
 
+        // キャレットが行頭や記号の手前にあるときは、記号を足さずにただ改行する（行を下へ送るだけ）
+        if let prefixEnd = listOrQuotePrefixLength(lineText), location - lineStart < prefixEnd {
+            return nil
+        }
+
         if let m = fullMatch(Self.taskRegex, in: lineText) {
             let indentation = substring(lineText, m, group: 1)
             let marker = substring(lineText, m, group: 2)
             let rest = substring(lineText, m, group: 4)
             if rest.isEmpty {
-                return exitLine(ns, lineStart: lineStart, at: location)
+                return endEmptyItem(ns, lineStart: lineStart, lineText: lineText, indentation: indentation, at: location)
             }
             let newPrefix = "\n\(indentation)\(marker) [ ] "
             return TextEdit(range: NSRange(location: location, length: 0), replacement: newPrefix, selection: NSRange(location: location + newPrefix.utf16.count, length: 0))
@@ -87,7 +93,7 @@ public struct EditorAssist: Sendable {
             let separator = substring(lineText, m, group: 3)
             let rest = substring(lineText, m, group: 4)
             if rest.isEmpty {
-                return exitLine(ns, lineStart: lineStart, at: location)
+                return endEmptyItem(ns, lineStart: lineStart, lineText: lineText, indentation: indentation, at: location)
             }
             let currentNumber = Int(numberText) ?? 1
             let newNumber = autoIncrementOrderedList ? currentNumber + 1 : currentNumber
@@ -98,7 +104,7 @@ public struct EditorAssist: Sendable {
             if autoIncrementOrderedList {
                 edits.append(contentsOf: renumberEdits(ns, afterLineEnd: lineEnd, indentation: indentation, startingAt: newNumber + 1))
             }
-            return combineEdits(ns, edits: edits, caretAfterPrimary: location + newPrefix.utf16.count)
+            return combineEdits(ns, edits: edits, caretAt: location)
         }
 
         if let m = fullMatch(Self.unorderedRegex, in: lineText) {
@@ -106,7 +112,7 @@ public struct EditorAssist: Sendable {
             let marker = substring(lineText, m, group: 2)
             let rest = substring(lineText, m, group: 3)
             if rest.isEmpty {
-                return exitLine(ns, lineStart: lineStart, at: location)
+                return endEmptyItem(ns, lineStart: lineStart, lineText: lineText, indentation: indentation, at: location)
             }
             let newPrefix = "\n\(indentation)\(marker) "
             return TextEdit(range: NSRange(location: location, length: 0), replacement: newPrefix, selection: NSRange(location: location + newPrefix.utf16.count, length: 0))
@@ -116,7 +122,7 @@ public struct EditorAssist: Sendable {
             let indentation = substring(lineText, m, group: 1)
             let rest = substring(lineText, m, group: 2)
             if rest.isEmpty {
-                return exitLine(ns, lineStart: lineStart, at: location)
+                return endEmptyItem(ns, lineStart: lineStart, lineText: lineText, indentation: indentation, at: location)
             }
             let newPrefix = "\n\(indentation)> "
             return TextEdit(range: NSRange(location: location, length: 0), replacement: newPrefix, selection: NSRange(location: location + newPrefix.utf16.count, length: 0))
@@ -132,6 +138,52 @@ public struct EditorAssist: Sendable {
         let indentation = substring(lineText, m, group: 0)
         let newPrefix = "\n\(indentation)"
         return TextEdit(range: NSRange(location: location, length: 0), replacement: newPrefix, selection: NSRange(location: location + newPrefix.utf16.count, length: 0))
+    }
+
+    /// The current item is empty. A nested item moves up to its parent's level (as in most
+    /// editors); a top-level one leaves the list.
+    private func endEmptyItem(_ ns: NSString, lineStart: Int, lineText: String, indentation: String, at location: Int) -> TextEdit {
+        guard !indentation.isEmpty else { return exitLine(ns, lineStart: lineStart, at: location) }
+        let parent = parentIndentation(ns, beforeLineStart: lineStart, shorterThan: indentation.utf16.count)
+        let marker = (lineText as NSString).substring(from: indentation.utf16.count)
+        let replacement = parent + marker
+        let range = NSRange(location: lineStart, length: (lineText as NSString).length)
+        return TextEdit(range: range, replacement: replacement,
+                        selection: NSRange(location: lineStart + replacement.utf16.count, length: 0))
+    }
+
+    /// Indentation of the nearest list item above that is indented less than `width`.
+    private func parentIndentation(_ ns: NSString, beforeLineStart lineStart: Int, shorterThan width: Int) -> String {
+        var end = lineStart
+        while end > 0 {
+            let line = ns.lineRange(for: NSRange(location: end - 1, length: 0))
+            let text = ns.substring(with: line).trimmingCharacters(in: .newlines)
+            end = line.location
+            guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { continue }
+            let indent = leadingWhitespace(text)
+            if indent.utf16.count < width, listOrQuotePrefixLength(text) != nil { return indent }
+            if indent.isEmpty { break }  // 本文の段落まで来たら、それより上は別のリスト
+        }
+        return ""
+    }
+
+    private func leadingWhitespace(_ text: String) -> String {
+        guard let m = fullMatch(Self.leadingWhitespaceRegex, in: text) else { return "" }
+        return substring(text, m, group: 0)
+    }
+
+    /// Backspace right after a list or quote marker removes the whole marker ("- ", "1. ",
+    /// "- [ ] ", "> ") and keeps the indentation and any text after it.
+    private func interceptBackspaceAfterListMarker(_ ns: NSString, range: NSRange) -> TextEdit? {
+        guard autoInsertLinePrefix else { return nil }
+        let caret = range.location + range.length
+        let line = ns.lineRange(for: NSRange(location: range.location, length: 0))
+        let lineText = ns.substring(with: line).trimmingCharacters(in: .newlines)
+        guard let prefixEnd = listOrQuotePrefixLength(lineText), caret - line.location == prefixEnd else { return nil }
+        let indent = leadingWhitespace(lineText).utf16.count
+        guard indent < prefixEnd else { return nil }
+        return TextEdit(range: NSRange(location: line.location + indent, length: prefixEnd - indent), replacement: "",
+                        selection: NSRange(location: line.location + indent, length: 0))
     }
 
     /// The current line's content-after-prefix is empty: remove the prefix and
@@ -166,9 +218,15 @@ public struct EditorAssist: Sendable {
             var lineStart = 0, lineEnd = 0, contentsEnd = 0
             ns.getLineStart(&lineStart, end: &lineEnd, contentsEnd: &contentsEnd, for: NSRange(location: location, length: 0))
             let lineText = ns.substring(with: NSRange(location: lineStart, length: contentsEnd - lineStart))
-            guard let m = fullMatch(Self.orderedRegex, in: lineText) else { break }
-            let lineIndentation = substring(lineText, m, group: 1)
-            guard lineIndentation == indentation else { break }
+            if lineText.trimmingCharacters(in: .whitespaces).isEmpty { break }  // 空行で別のリストになる
+            let lineIndentation = leadingWhitespace(lineText)
+            if lineIndentation.utf16.count > indentation.utf16.count {
+                // 子の項目や続きの行は飛ばして、同じ階層の次の項目を探す
+                if lineEnd <= location { break }
+                location = lineEnd
+                continue
+            }
+            guard let m = fullMatch(Self.orderedRegex, in: lineText), lineIndentation == indentation else { break }
             let numberRange = m.range(at: 2)
             let absoluteRange = NSRange(location: lineStart + numberRange.location, length: numberRange.length)
             edits.append((absoluteRange, String(nextNumber)))
@@ -188,7 +246,9 @@ public struct EditorAssist: Sendable {
 
     /// Combines the primary insertion edit with any subsequent renumbering
     /// edits into a single `TextEdit`.
-    private func combineEdits(_ ns: NSString, edits: [(range: NSRange, replacement: String)], caretAfterPrimary: Int) -> TextEdit? {
+    /// caretAt is a position in the original text; it is mapped through the edits, so a caret at
+    /// an insertion point ends up after the inserted text.
+    private func combineEdits(_ ns: NSString, edits: [(range: NSRange, replacement: String)], caretAt: Int) -> TextEdit? {
         guard !edits.isEmpty else { return nil }
         let sorted = edits.sorted { $0.range.location < $1.range.location }
         let spanStart = sorted.first!.range.location
@@ -218,7 +278,7 @@ public struct EditorAssist: Sendable {
             return original + delta
         }
 
-        let caretMapped = mapPosition(caretAfterPrimary)
+        let caretMapped = mapPosition(caretAt)
         return TextEdit(range: NSRange(location: spanStart, length: spanEnd - spanStart), replacement: result, selection: NSRange(location: caretMapped, length: 0))
     }
 
@@ -226,6 +286,7 @@ public struct EditorAssist: Sendable {
 
     private static let openerToCloser: [Character: Character] = ["(": ")", "[": "]", "{": "}", "\"": "\"", "'": "'", "`": "`"]
     private static let closerToOpener: [Character: Character] = [")": "(", "]": "[", "}": "{", "\"": "\"", "'": "'", "`": "`"]
+    private static let quoteLike: Set<Character> = ["\"", "'", "`"]
 
     private func interceptBracket(_ ns: NSString, range: NSRange, char: Character) -> TextEdit? {
         guard autoCompleteBrackets else { return nil }
@@ -243,8 +304,17 @@ public struct EditorAssist: Sendable {
 
         guard let closer = Self.openerToCloser[char] else { return nil }
 
-        if char == "'" {
-            if range.location > 0, let prev = charAt(ns, range.location - 1), isAlphanumeric(prev) {
+        if range.length == 0 {
+            // Like a plain text editor, only add the closer where nothing follows on the line:
+            // before whitespace, the end of the line, or another closing character.
+            if let next = charAt(ns, range.location), !next.isWhitespace, Self.closerToOpener[next] == nil {
+                return nil
+            }
+            // Quote-like characters right after a letter or digit are apostrophes, inch marks
+            // or the end of an inline code span, not the start of a pair. Right after the same
+            // character they are being repeated (a ``` code fence), not opened.
+            if Self.quoteLike.contains(char), range.location > 0,
+               let prev = charAt(ns, range.location - 1), isAlphanumeric(prev) || prev == char {
                 return nil
             }
         }

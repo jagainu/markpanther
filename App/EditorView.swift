@@ -31,6 +31,8 @@ final class EditorView: NSView, NSTextViewDelegate, @preconcurrency NSTextStorag
     private var baseFont = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
     private var isApplyingEdit = false
     private var isReplacingAll = false
+    /// 編集のその場では塗らずに、直後にまとめて塗り直す範囲（下の textStorage(_:willProcessEditing:) 参照）
+    private var pendingHighlight: NSRange?
     private var lineNumbers: LineNumberRulerView!
 
     override init(frame: NSRect) {
@@ -56,9 +58,13 @@ final class EditorView: NSView, NSTextViewDelegate, @preconcurrency NSTextStorag
         textView.isIncrementalSearchingEnabled = true
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
-        textView.isAutomaticTextReplacementEnabled = false
+        // システム設定のテキスト置換（ユーザ辞書の短縮入力）は、普通のエディタと同じく効かせる
+        textView.isAutomaticTextReplacementEnabled = true
         textView.isAutomaticSpellingCorrectionEnabled = false
-        textView.isContinuousSpellCheckingEnabled = false
+        // テキスト置換は「入力中の自動チェック」の一部としてしか走らないので、自動チェック自体は動かし、
+        // 中身は置換だけに絞る（スペルの波線は出さない）
+        textView.isContinuousSpellCheckingEnabled = true
+        textView.enabledTextCheckingTypes = NSTextCheckingResult.CheckingType.replacement.rawValue
         textView.drawsBackground = true
         textView.backgroundColor = .textBackgroundColor
         textView.insertionPointColor = AppAccent.color
@@ -109,16 +115,36 @@ final class EditorView: NSView, NSTextViewDelegate, @preconcurrency NSTextStorag
 
     var text: String { textView.string }
 
-    /// 外部更新などで全文を差し替える。選択とスクロール位置はできる範囲で保つ。Undo 履歴は破棄する。
-    func replaceAll(with newText: String) {
+    /// 全文を差し替える。選択とスクロール位置はできる範囲で保つ。
+    /// undoable: 外部（エージェントなど）による書き換えの反映。⌘Z でその書き換えの前に戻せる。
+    /// false のとき（最初の読み込み）は Undo 履歴を捨てる（取り消すと空になってしまうので）。
+    func replaceAll(with newText: String, undoable: Bool = false) {
         guard newText != textView.string else { return }
+        // 日本語などの変換中に中身を差し替えると、入力メソッドが変換中のつもりのまま取り残され、
+        // 次の確定の Enter が改行として入ってしまう。先に変換を終わらせてから差し替える
+        if textView.hasMarkedText() {
+            textView.inputContext?.discardMarkedText()
+            textView.unmarkText()
+        }
         let selection = textView.selectedRange()
         let origin = scrollView.contentView.bounds.origin
         isReplacingAll = true
-        textView.string = newText
+        if undoable {
+            // 直前の打鍵とまとめて取り消されないよう、前後で区切る
+            textView.breakUndoCoalescing()
+            let whole = NSRange(location: 0, length: (textView.string as NSString).length)
+            if textView.shouldChangeText(in: whole, replacementString: newText) {
+                textView.textStorage?.replaceCharacters(in: whole, with: newText)
+                textView.didChangeText()
+                textView.undoManager?.setActionName("Reload from Disk")
+            }
+            textView.breakUndoCoalescing()
+        } else {
+            textView.string = newText
+            textView.undoManager?.removeAllActions()
+        }
         isReplacingAll = false
         lineNumbers.invalidateLineNumbers()
-        textView.undoManager?.removeAllActions()
         let length = (newText as NSString).length
         textView.setSelectedRange(NSRange(location: min(selection.location, length), length: 0))
         textView.layoutManager?.ensureLayout(for: textView.textContainer!)
@@ -199,12 +225,19 @@ final class EditorView: NSView, NSTextViewDelegate, @preconcurrency NSTextStorag
     // MARK: - NSTextViewDelegate
 
     func textView(_ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString: String?) -> Bool {
-        guard !isApplyingEdit, !textView.hasMarkedText(), let replacementString,
+        guard !isApplyingEdit, !isReplacingAll, !textView.hasMarkedText(), let replacementString,
               textView.undoManager?.isUndoing != true, textView.undoManager?.isRedoing != true,
               let edit = assist.intercept(text: textView.string, range: range, replacement: replacementString)
         else { return true }
         apply(edit)
         return false
+    }
+
+    /// Shift+Tab は、普通のエディタと同じく字下げを戻す（NSTextView の既定では何も起きない）
+    func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        guard commandSelector == #selector(NSResponder.insertBacktab(_:)), !textView.hasMarkedText() else { return false }
+        perform(.shiftLeft)
+        return true
     }
 
     func textDidChange(_ notification: Notification) {
@@ -217,14 +250,38 @@ final class EditorView: NSView, NSTextViewDelegate, @preconcurrency NSTextStorag
     /// 必ず willProcessEditing で行う。NSTextStorage はこの直後に fixAttributes で「フォントに無い文字」
     /// （日本語など）を代替フォントへ差し替える。didProcessEditing で .font を上書きすると、その差し替えを
     /// 潰してしまい、等幅フォントにグリフの無い文字が描画されなくなる。
+    ///
+    /// 打鍵のその場で塗るのは、いま変わった文字の範囲だけにする。それより外の属性に触ると、入力中の
+    /// 自動チェック（ユーザ辞書のテキスト置換など）が「途中で書き換えられた」と見なして取りやめてしまう。
+    /// 行の残りや、コードブロックの開閉で変わる先の範囲は、編集が終わった直後に塗り直す。
     func textStorage(_ textStorage: NSTextStorage, willProcessEditing editedMask: NSTextStorageEditActions,
                      range editedRange: NSRange, changeInLength delta: Int) {
         guard editedMask.contains(.editedCharacters) else { return }
+        if isReplacingAll {
+            applyHighlight(to: textStorage, range: NSRange(location: 0, length: textStorage.length))
+            return
+        }
         let text = textStorage.string
-        let range = isReplacingAll
-            ? NSRange(location: 0, length: textStorage.length)
-            : highlighter.rangeToRehighlight(in: text, editedRange: editedRange)
-        applyHighlight(to: textStorage, range: range)
+        let range = highlighter.rangeToRehighlight(in: text, editedRange: editedRange)
+        applyHighlight(to: textStorage, range: range, clippedTo: editedRange)
+        scheduleHighlight(range)
+    }
+
+    private func scheduleHighlight(_ range: NSRange) {
+        let alreadyScheduled = pendingHighlight != nil
+        pendingHighlight = pendingHighlight.map { NSUnionRange($0, range) } ?? range
+        guard !alreadyScheduled else { return }
+        DispatchQueue.main.async { [weak self] in self?.flushPendingHighlight() }
+    }
+
+    private func flushPendingHighlight() {
+        guard let range = pendingHighlight, let storage = textView.textStorage else { return }
+        // 日本語などの変換中に塗り直すと、変換中の文字の下線が消える。確定の編集で改めて予約される
+        guard !textView.hasMarkedText() else { pendingHighlight = nil; return }
+        pendingHighlight = nil
+        storage.beginEditing()
+        applyHighlight(to: storage, range: range)
+        storage.endEditing()
     }
 
     private func rehighlightAll() {
@@ -234,12 +291,15 @@ final class EditorView: NSView, NSTextViewDelegate, @preconcurrency NSTextStorag
         storage.endEditing()
     }
 
-    private func applyHighlight(to storage: NSTextStorage, range: NSRange) {
+    /// range を解析して塗る。clip を渡すと、属性を書き換えるのはその範囲の中だけにする
+    private func applyHighlight(to storage: NSTextStorage, range: NSRange, clippedTo clip: NSRange? = nil) {
         let range = NSIntersectionRange(range, NSRange(location: 0, length: storage.length))
         guard range.length > 0 else { return }
-        storage.setAttributes(baseAttributes, range: range)
+        let target = clip.map { NSIntersectionRange($0, range) } ?? range
+        guard target.length > 0 else { return }
+        storage.setAttributes(baseAttributes, range: target)
         for span in highlighter.highlight(storage.string, in: range) {
-            let spanRange = NSIntersectionRange(span.range, range)
+            let spanRange = NSIntersectionRange(span.range, target)
             guard spanRange.length > 0 else { continue }
             storage.addAttributes(attributes(for: span.style), range: spanRange)
         }

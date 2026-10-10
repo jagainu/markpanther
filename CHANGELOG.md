@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.4] - 2026-10-11
+
+- Fix: confirming Japanese (or other input method) text with Return could insert
+  a line break. Autosave mistook its own write for an outside change and reloaded
+  the editor mid-typing
+- Change: brackets and quotes are paired only where nothing follows on the line,
+  and quotes aren't paired right after a letter or digit
+- New: Shift-Tab removes one level of indentation
+- New: macOS text replacements (System Settings → Keyboard) work in the editor
+- New: when another app rewrites the file, ⌘Z brings back the previous text
+- Fix: lists — Return at the start of an item no longer doubles the marker, the
+  caret lands on the new item in numbered lists, renumbering continues past
+  nested items, Return on an empty nested item moves it up a level, and
+  Backspace right after a marker removes the whole marker
+- Fix: typing ``` no longer produces four backticks
+
 ## [0.1.3] - 2026-09-28
 
 - Fix: in tables, a row where text was removed no longer shifts its cells
