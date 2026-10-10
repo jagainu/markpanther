@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+- Fix: confirming Japanese (or other input method) text with Return could insert
+  a line break. Autosave mistook its own write for an outside change and reloaded
+  the editor mid-typing
+- Change: brackets and quotes are paired only where nothing follows on the line,
+  and quotes aren't paired right after a letter or digit
+- New: Shift-Tab removes one level of indentation
+
 ## [0.1.3] - 2026-09-28
 
 - Fix: in tables, a row where text was removed no longer shifts its cells

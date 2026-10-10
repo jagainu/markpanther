@@ -226,6 +226,7 @@ public struct EditorAssist: Sendable {
 
     private static let openerToCloser: [Character: Character] = ["(": ")", "[": "]", "{": "}", "\"": "\"", "'": "'", "`": "`"]
     private static let closerToOpener: [Character: Character] = [")": "(", "]": "[", "}": "{", "\"": "\"", "'": "'", "`": "`"]
+    private static let quoteLike: Set<Character> = ["\"", "'", "`"]
 
     private func interceptBracket(_ ns: NSString, range: NSRange, char: Character) -> TextEdit? {
         guard autoCompleteBrackets else { return nil }
@@ -243,8 +244,16 @@ public struct EditorAssist: Sendable {
 
         guard let closer = Self.openerToCloser[char] else { return nil }
 
-        if char == "'" {
-            if range.location > 0, let prev = charAt(ns, range.location - 1), isAlphanumeric(prev) {
+        if range.length == 0 {
+            // Like a plain text editor, only add the closer where nothing follows on the line:
+            // before whitespace, the end of the line, or another closing character.
+            if let next = charAt(ns, range.location), !next.isWhitespace, Self.closerToOpener[next] == nil {
+                return nil
+            }
+            // Quote-like characters right after a letter or digit are apostrophes, inch marks
+            // or the end of an inline code span, not the start of a pair.
+            if Self.quoteLike.contains(char), range.location > 0,
+               let prev = charAt(ns, range.location - 1), isAlphanumeric(prev) {
                 return nil
             }
         }

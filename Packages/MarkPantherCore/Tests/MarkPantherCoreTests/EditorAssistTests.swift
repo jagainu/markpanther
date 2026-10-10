@@ -132,6 +132,43 @@ final class EditorAssistTests: XCTestCase {
         XCTAssertEqual(edit?.selection, NSRange(location: 5, length: 0))
     }
 
+    /// 普通のエディタと同じく、後ろに文字が続く位置では閉じ括弧を足さない（"abc" の前で ( → "(abc"）
+    func testParenNotPairedBeforeWord() {
+        let a = EditorAssist()
+        let edit = a.intercept(text: "abc", range: NSRange(location: 0, length: 0), replacement: "(")
+        XCTAssertNil(edit)
+    }
+
+    func testParenNotPairedBeforeJapanese() {
+        let a = EditorAssist()
+        let edit = a.intercept(text: "日本語", range: NSRange(location: 0, length: 0), replacement: "[")
+        XCTAssertNil(edit)
+    }
+
+    func testParenPairedBeforeSpace() {
+        let a = EditorAssist()
+        let edit = a.intercept(text: "a b", range: NSRange(location: 1, length: 0), replacement: "(")
+        XCTAssertEqual(edit?.replacement, "()")
+    }
+
+    func testParenPairedBeforeCloser() {
+        let a = EditorAssist()
+        let edit = a.intercept(text: "[]", range: NSRange(location: 1, length: 0), replacement: "(")
+        XCTAssertEqual(edit?.replacement, "()")
+    }
+
+    func testDoubleQuoteNotPairedAfterWord() {
+        let a = EditorAssist()
+        let edit = a.intercept(text: "5", range: NSRange(location: 1, length: 0), replacement: "\"")
+        XCTAssertNil(edit)
+    }
+
+    func testBacktickNotPairedAfterWord() {
+        let a = EditorAssist()
+        let edit = a.intercept(text: "foo", range: NSRange(location: 3, length: 0), replacement: "`")
+        XCTAssertNil(edit)
+    }
+
     func testBracketWrapsSelection() {
         let a = EditorAssist()
         let text = "foo bar"

@@ -112,6 +112,12 @@ final class EditorView: NSView, NSTextViewDelegate, @preconcurrency NSTextStorag
     /// 外部更新などで全文を差し替える。選択とスクロール位置はできる範囲で保つ。Undo 履歴は破棄する。
     func replaceAll(with newText: String) {
         guard newText != textView.string else { return }
+        // 日本語などの変換中に中身を差し替えると、入力メソッドが変換中のつもりのまま取り残され、
+        // 次の確定の Enter が改行として入ってしまう。先に変換を終わらせてから差し替える
+        if textView.hasMarkedText() {
+            textView.inputContext?.discardMarkedText()
+            textView.unmarkText()
+        }
         let selection = textView.selectedRange()
         let origin = scrollView.contentView.bounds.origin
         isReplacingAll = true
@@ -205,6 +211,13 @@ final class EditorView: NSView, NSTextViewDelegate, @preconcurrency NSTextStorag
         else { return true }
         apply(edit)
         return false
+    }
+
+    /// Shift+Tab は、普通のエディタと同じく字下げを戻す（NSTextView の既定では何も起きない）
+    func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        guard commandSelector == #selector(NSResponder.insertBacktab(_:)), !textView.hasMarkedText() else { return false }
+        perform(.shiftLeft)
+        return true
     }
 
     func textDidChange(_ notification: Notification) {
